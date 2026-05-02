@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     postgres_password: str = "postgres"
     redis_url: str = "redis://localhost:6379/0"
     openai_api_key: str = ""
+    openai_model: str = "gpt-4o-mini"
+    openai_base_url: str = "https://api.openai.com/v1/responses"
     upload_dir: str = "./uploads"
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
 

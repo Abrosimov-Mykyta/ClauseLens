@@ -175,6 +175,7 @@ def create_document_record(
     filename: str,
     storage_path: str,
     mime_type: str | None,
+    analysis_payload: dict[str, str],
 ) -> Document:
     workspace = get_workspace_by_slug(session, workspace_slug)
     if workspace is None:
@@ -195,22 +196,10 @@ def create_document_record(
         workspace_id=workspace.id,
         document_id=document.id,
         status="completed",
-        summary=(
-            f"Initial AI summary for {filename}: the document has been ingested into "
-            f"{workspace.name} and is ready for deeper due diligence review."
-        ),
-        red_flags=(
-            "Potential areas to inspect first: change-of-control language, broad indemnity scope, "
-            "and any unilateral termination rights."
-        ),
-        obligations=(
-            "Capture renewal notice periods, payment obligations, confidentiality survival terms, "
-            "and approval requirements."
-        ),
-        follow_up_questions=(
-            "Does this contract restrict assignment, auto-renew beyond acceptable terms, or create "
-            "unbounded liability exposure?"
-        ),
+        summary=analysis_payload["summary"],
+        red_flags=analysis_payload["red_flags"],
+        obligations=analysis_payload["obligations"],
+        follow_up_questions=analysis_payload["follow_up_questions"],
     )
     session.add(analysis)
 

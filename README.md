@@ -56,6 +56,8 @@ The web script includes a `NODE_OPTIONS=--no-experimental-webstorage` runtime fi
 
 By default the API uses a local SQLite database file at `apps/api/clauselens.db` for a zero-setup demo flow. Set `DATABASE_URL_OVERRIDE` in `.env` if you want to point the backend at Postgres instead.
 
+If `OPENAI_API_KEY` is configured, new uploads run through a real OpenAI-backed analysis call using the Responses API plus structured JSON output. If the key is missing or the request fails, ClauseLens falls back to a deterministic local analysis so the demo remains usable offline.
+
 ## Current implemented demo flow
 
 - `GET /health`

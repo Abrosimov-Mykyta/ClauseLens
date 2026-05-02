@@ -7,3 +7,4 @@ psycopg[binary]==3.2.13
 redis==6.0.0
 celery==5.5.2
 python-multipart==0.0.20
+pypdf==5.5.0
