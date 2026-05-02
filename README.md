@@ -62,7 +62,11 @@ By default the API uses a local SQLite database file at `apps/api/clauselens.db`
 - `GET /api/workspaces`
 - `GET /api/workspaces/{workspace_id}`
 - `GET /api/workspaces/{workspace_id}/audit`
+- `GET /api/workspaces/{workspace_id}/documents`
+- `GET /api/workspaces/{workspace_id}/chat/history`
 - `POST /api/workspaces/{workspace_id}/chat`
 - `POST /api/documents/upload`
+
+The current workspace UI now reflects persisted documents, a generated analysis snapshot, and saved chat history from the local database.
 
 Detailed setup and architecture notes live in [`docs/architecture.md`](./docs/architecture.md).

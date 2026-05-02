@@ -14,6 +14,8 @@ export type WorkspaceDetail = WorkspaceSummary & {
   description: string;
   members: number;
   recent_activity: string[];
+  documents_list: DocumentSummary[];
+  latest_analysis: AnalysisSnapshot | null;
 };
 
 export type AuditEvent = {
@@ -30,9 +32,31 @@ export type DocumentUploadResult = {
   stage: string;
 };
 
+export type DocumentSummary = DocumentUploadResult & {
+  created_at: string;
+};
+
 export type ChatAnswer = {
   answer: string;
   citations: string[];
+};
+
+export type ChatHistoryMessage = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  citations: string[];
+  created_at: string;
+};
+
+export type AnalysisSnapshot = {
+  id: string;
+  status: string;
+  summary: string;
+  red_flags: string;
+  obligations: string;
+  follow_up_questions: string;
+  created_at: string;
 };
 
 async function fetchJson<T>(path: string): Promise<T> {
@@ -47,6 +71,24 @@ async function fetchJson<T>(path: string): Promise<T> {
   return (await response.json()) as T;
 }
 
+function normalizeWorkspaceDetail(
+  workspaceId: string,
+  payload: Partial<WorkspaceDetail>,
+): WorkspaceDetail {
+  return {
+    id: payload.id ?? workspaceId,
+    name: payload.name ?? "Demo workspace",
+    status: payload.status ?? "processing",
+    documents: payload.documents ?? 0,
+    risks: payload.risks ?? 0,
+    description: payload.description ?? "Demo fallback until the API is connected.",
+    members: payload.members ?? 1,
+    recent_activity: payload.recent_activity ?? [],
+    documents_list: payload.documents_list ?? [],
+    latest_analysis: payload.latest_analysis ?? null,
+  };
+}
+
 export async function getWorkspaces(): Promise<WorkspaceSummary[]> {
   try {
     return await fetchJson<WorkspaceSummary[]>("/api/workspaces");
@@ -57,10 +99,11 @@ export async function getWorkspaces(): Promise<WorkspaceSummary[]> {
 
 export async function getWorkspace(workspaceId: string): Promise<WorkspaceDetail> {
   try {
-    return await fetchJson<WorkspaceDetail>(`/api/workspaces/${workspaceId}`);
+    const payload = await fetchJson<Partial<WorkspaceDetail>>(`/api/workspaces/${workspaceId}`);
+    return normalizeWorkspaceDetail(workspaceId, payload);
   } catch {
     const fallback = demoWorkspaces.find((workspace) => workspace.id === workspaceId);
-    return {
+    return normalizeWorkspaceDetail(workspaceId, {
       id: workspaceId,
       name: fallback?.name ?? "Demo workspace",
       status: fallback?.status ?? "processing",
@@ -72,7 +115,7 @@ export async function getWorkspace(workspaceId: string): Promise<WorkspaceDetail
         "API fallback mode active",
         "Workspace detail not loaded from backend",
       ],
-    };
+    });
   }
 }
 
@@ -128,4 +171,20 @@ export async function askWorkspaceQuestion(
   }
 
   return (await response.json()) as ChatAnswer;
+}
+
+export async function getWorkspaceDocuments(workspaceId: string): Promise<DocumentSummary[]> {
+  try {
+    return await fetchJson<DocumentSummary[]>(`/api/workspaces/${workspaceId}/documents`);
+  } catch {
+    return [];
+  }
+}
+
+export async function getWorkspaceChatHistory(workspaceId: string): Promise<ChatHistoryMessage[]> {
+  try {
+    return await fetchJson<ChatHistoryMessage[]>(`/api/workspaces/${workspaceId}/chat/history`);
+  } catch {
+    return [];
+  }
 }

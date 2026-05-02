@@ -7,3 +7,6 @@ class DocumentStatus(BaseModel):
     status: str
     stage: str
 
+
+class DocumentSummary(DocumentStatus):
+    created_at: str

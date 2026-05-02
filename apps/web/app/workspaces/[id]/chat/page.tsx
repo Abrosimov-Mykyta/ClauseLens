@@ -1,25 +1,34 @@
 import { ChatConsole } from "../../../../components/chat-console";
 import { Topbar } from "../../../../components/topbar";
+import { getWorkspaceChatHistory } from "../../../../lib/api";
 
 type ChatPageProps = {
   params: Promise<{ id: string }>;
 };
 
-const messages = [
-  {
-    role: "user" as const,
-    content: "Which clauses look risky in the supplier agreement?",
-  },
-  {
-    role: "assistant" as const,
-    content:
-      "Three clauses stand out: a broad indemnity obligation, an auto-renewal section with a short cancellation window, and a change-of-control restriction. Each answer should later cite supporting chunks from the indexed documents.",
-    citations: ["supplier-agreement.pdf#section-4", "supplier-agreement.pdf#section-9"],
-  },
-];
-
 export default async function WorkspaceChatPage({ params }: ChatPageProps) {
   const { id } = await params;
+  const history = await getWorkspaceChatHistory(id);
+  const initialMessages =
+    history.length > 0
+      ? history
+      : [
+          {
+            id: "demo-user",
+            role: "user" as const,
+            content: "Which clauses look risky in the supplier agreement?",
+            citations: [],
+            created_at: new Date().toISOString(),
+          },
+          {
+            id: "demo-assistant",
+            role: "assistant" as const,
+            content:
+              "Three clauses stand out: a broad indemnity obligation, an auto-renewal section with a short cancellation window, and a change-of-control restriction. Each answer should later cite supporting chunks from the indexed documents.",
+            citations: ["supplier-agreement.pdf#section-4", "supplier-agreement.pdf#section-9"],
+            created_at: new Date().toISOString(),
+          },
+        ];
 
   return (
     <main className="page-shell">
@@ -33,7 +42,7 @@ export default async function WorkspaceChatPage({ params }: ChatPageProps) {
         </p>
       </section>
 
-      <ChatConsole workspaceId={id} initialMessages={messages} />
+      <ChatConsole workspaceId={id} initialMessages={initialMessages} />
     </main>
   );
 }

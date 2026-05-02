@@ -2,7 +2,16 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.bootstrap import DEFAULT_USER_EMAIL
-from app.models import AuditLog, ChatMessage, ChatSession, Document, User, Workspace, WorkspaceMember
+from app.models import (
+    AnalysisRun,
+    AuditLog,
+    ChatMessage,
+    ChatSession,
+    Document,
+    User,
+    Workspace,
+    WorkspaceMember,
+)
 
 
 def serialize_workspace_summary(session: Session, workspace: Workspace) -> dict:
@@ -44,12 +53,48 @@ def get_workspace_detail_payload(session: Session, workspace_slug: str) -> dict 
         .order_by(AuditLog.created_at.desc())
         .limit(4)
     ).all()
+    documents = session.scalars(
+        select(Document)
+        .where(Document.workspace_id == workspace.id)
+        .order_by(Document.created_at.desc())
+        .limit(10)
+    ).all()
+    latest_analysis = session.scalar(
+        select(AnalysisRun)
+        .where(AnalysisRun.workspace_id == workspace.id)
+        .order_by(AnalysisRun.created_at.desc())
+        .limit(1)
+    )
 
     return {
         **summary,
         "description": workspace.description or "No description provided yet.",
         "members": member_count,
         "recent_activity": recent_activity_rows,
+        "documents_list": [
+            {
+                "id": document.id,
+                "filename": document.filename,
+                "status": document.status,
+                "stage": document.parser_stage,
+                "created_at": document.created_at.isoformat(),
+            }
+            for document in documents
+        ],
+        "latest_analysis": (
+            {
+                "id": latest_analysis.id,
+                "status": latest_analysis.status,
+                "summary": latest_analysis.summary or "No summary generated yet.",
+                "red_flags": latest_analysis.red_flags or "No red flags captured yet.",
+                "obligations": latest_analysis.obligations or "No obligations captured yet.",
+                "follow_up_questions": latest_analysis.follow_up_questions
+                or "No follow-up questions generated yet.",
+                "created_at": latest_analysis.created_at.isoformat(),
+            }
+            if latest_analysis is not None
+            else None
+        ),
     }
 
 
@@ -76,6 +121,53 @@ def list_workspace_audit_events(session: Session, workspace_slug: str) -> list[d
     ]
 
 
+def list_workspace_documents(session: Session, workspace_slug: str) -> list[dict]:
+    workspace = get_workspace_by_slug(session, workspace_slug)
+    if workspace is None:
+        return []
+
+    documents = session.scalars(
+        select(Document)
+        .where(Document.workspace_id == workspace.id)
+        .order_by(Document.created_at.desc())
+    ).all()
+
+    return [
+        {
+            "id": document.id,
+            "filename": document.filename,
+            "status": document.status,
+            "stage": document.parser_stage,
+            "created_at": document.created_at.isoformat(),
+        }
+        for document in documents
+    ]
+
+
+def list_workspace_chat_history(session: Session, workspace_slug: str) -> list[dict]:
+    workspace = get_workspace_by_slug(session, workspace_slug)
+    if workspace is None:
+        return []
+
+    messages = session.scalars(
+        select(ChatMessage)
+        .join(ChatSession, ChatSession.id == ChatMessage.session_id)
+        .where(ChatSession.workspace_id == workspace.id)
+        .order_by(ChatMessage.created_at.asc())
+    ).all()
+
+    return [
+        {
+            "id": message.id,
+            "role": message.role,
+            "content": message.content,
+            "citations": message.citations.split("|") if message.citations else [],
+            "created_at": message.created_at.isoformat(),
+        }
+        for message in messages
+    ]
+
+
 def create_document_record(
     session: Session,
     workspace_slug: str,
@@ -93,20 +185,51 @@ def create_document_record(
         filename=filename,
         storage_path=storage_path,
         mime_type=mime_type,
-        status="uploaded",
-        parser_stage="queued-for-processing",
+        status="ready",
+        parser_stage="analyzed",
     )
     session.add(document)
     session.flush()
 
+    analysis = AnalysisRun(
+        workspace_id=workspace.id,
+        document_id=document.id,
+        status="completed",
+        summary=(
+            f"Initial AI summary for {filename}: the document has been ingested into "
+            f"{workspace.name} and is ready for deeper due diligence review."
+        ),
+        red_flags=(
+            "Potential areas to inspect first: change-of-control language, broad indemnity scope, "
+            "and any unilateral termination rights."
+        ),
+        obligations=(
+            "Capture renewal notice periods, payment obligations, confidentiality survival terms, "
+            "and approval requirements."
+        ),
+        follow_up_questions=(
+            "Does this contract restrict assignment, auto-renew beyond acceptable terms, or create "
+            "unbounded liability exposure?"
+        ),
+    )
+    session.add(analysis)
+
     actor = session.scalar(select(User).where(User.email == DEFAULT_USER_EMAIL))
-    session.add(
-        AuditLog(
-            workspace_id=workspace.id,
-            actor_id=actor.id if actor else None,
-            event_type="document.uploaded",
-            message=f"Uploaded {filename}",
-        )
+    session.add_all(
+        [
+            AuditLog(
+                workspace_id=workspace.id,
+                actor_id=actor.id if actor else None,
+                event_type="document.uploaded",
+                message=f"Uploaded {filename}",
+            ),
+            AuditLog(
+                workspace_id=workspace.id,
+                actor_id=actor.id if actor else None,
+                event_type="analysis.completed",
+                message=f"Generated initial analysis snapshot for {filename}",
+            ),
+        ]
     )
     session.commit()
     session.refresh(document)
@@ -122,13 +245,20 @@ def create_chat_exchange(session: Session, workspace_slug: str, question: str) -
     if actor is None:
         raise ValueError("Demo reviewer not found")
 
-    chat_session = ChatSession(
-        workspace_id=workspace.id,
-        user_id=actor.id,
-        title="Due diligence review",
+    chat_session = session.scalar(
+        select(ChatSession)
+        .where(ChatSession.workspace_id == workspace.id, ChatSession.user_id == actor.id)
+        .order_by(ChatSession.created_at.desc())
+        .limit(1)
     )
-    session.add(chat_session)
-    session.flush()
+    if chat_session is None:
+        chat_session = ChatSession(
+            workspace_id=workspace.id,
+            user_id=actor.id,
+            title="Due diligence review",
+        )
+        session.add(chat_session)
+        session.flush()
 
     user_message = ChatMessage(
         session_id=chat_session.id,

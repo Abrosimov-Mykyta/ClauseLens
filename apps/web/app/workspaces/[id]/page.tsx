@@ -43,11 +43,28 @@ export default async function WorkspaceDetailPage({ params }: WorkspacePageProps
 
         <article className="workspace-card">
           <h3>Risk outputs</h3>
-          <ul className="list">
-            <li className="list-item">Executive summary</li>
-            <li className="list-item">Red flags and unusual clauses</li>
-            <li className="list-item">Obligations and follow-up questions</li>
-          </ul>
+          {workspace.latest_analysis ? (
+            <ul className="list">
+              <li className="list-item">
+                <strong>Summary</strong>
+                <p className="lede">{workspace.latest_analysis.summary}</p>
+              </li>
+              <li className="list-item">
+                <strong>Red flags</strong>
+                <p className="lede">{workspace.latest_analysis.red_flags}</p>
+              </li>
+              <li className="list-item">
+                <strong>Obligations</strong>
+                <p className="lede">{workspace.latest_analysis.obligations}</p>
+              </li>
+              <li className="list-item">
+                <strong>Follow-up questions</strong>
+                <p className="lede">{workspace.latest_analysis.follow_up_questions}</p>
+              </li>
+            </ul>
+          ) : (
+            <p className="lede">No analysis snapshot yet. Upload a document to trigger the first run.</p>
+          )}
         </article>
 
         <article className="workspace-card">
@@ -70,6 +87,24 @@ export default async function WorkspaceDetailPage({ params }: WorkspacePageProps
             Continue to chat
           </Link>
         </article>
+      </section>
+
+      <section className="panel" style={{ marginTop: 24 }}>
+        <h2>Indexed documents</h2>
+        {workspace.documents_list.length ? (
+          <ul className="list">
+            {workspace.documents_list.map((document) => (
+              <li key={document.id} className="list-item">
+                <strong>{document.filename}</strong>
+                <p className="helper-text">
+                  Status: {document.status} · Stage: {document.stage} · Added: {document.created_at}
+                </p>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="lede">No documents uploaded yet for this workspace.</p>
+        )}
       </section>
 
       <section className="panel" style={{ marginTop: 24 }}>

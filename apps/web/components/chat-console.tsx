@@ -2,21 +2,15 @@
 
 import { useState, useTransition } from "react";
 
-import { askWorkspaceQuestion } from "../lib/api";
-
-type ChatMessage = {
-  role: "user" | "assistant";
-  content: string;
-  citations?: string[];
-};
+import { askWorkspaceQuestion, type ChatHistoryMessage } from "../lib/api";
 
 type ChatConsoleProps = {
   workspaceId: string;
-  initialMessages: ChatMessage[];
+  initialMessages: ChatHistoryMessage[];
 };
 
 export function ChatConsole({ workspaceId, initialMessages }: ChatConsoleProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
+  const [messages, setMessages] = useState<ChatHistoryMessage[]>(initialMessages);
   const [question, setQuestion] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -54,9 +48,12 @@ export function ChatConsole({ workspaceId, initialMessages }: ChatConsoleProps) 
                 return;
               }
 
-              const optimisticQuestion: ChatMessage = {
+              const optimisticQuestion: ChatHistoryMessage = {
+                id: `optimistic-${Date.now()}`,
                 role: "user",
                 content: trimmed,
+                citations: [],
+                created_at: new Date().toISOString(),
               };
 
               setMessages((current) => [...current, optimisticQuestion]);
@@ -69,9 +66,11 @@ export function ChatConsole({ workspaceId, initialMessages }: ChatConsoleProps) 
                   setMessages((current) => [
                     ...current,
                     {
+                      id: `assistant-${Date.now()}`,
                       role: "assistant",
                       content: response.answer,
                       citations: response.citations,
+                      created_at: new Date().toISOString(),
                     },
                   ]);
                 } catch {
@@ -88,4 +87,3 @@ export function ChatConsole({ workspaceId, initialMessages }: ChatConsoleProps) 
     </section>
   );
 }
-
