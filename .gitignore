@@ -2,6 +2,7 @@
 .env
 .env.local
 .venv
+.venv313
 node_modules
 .next
 dist
@@ -10,4 +11,3 @@ coverage
 __pycache__
 *.pyc
 uploads
-

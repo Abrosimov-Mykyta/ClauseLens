@@ -35,8 +35,30 @@ infra/
 
 1. Copy `.env.example` to `.env`.
 2. Start infrastructure with Docker Compose.
-3. Install dependencies for `apps/web`, `apps/api`, and `apps/worker`.
-4. Run the web app, API, and worker in separate terminals.
+3. Run `npm install` from the repo root.
+4. Create a Python 3.13 environment for backend services:
+
+```bash
+DYLD_LIBRARY_PATH=/opt/homebrew/opt/expat/lib python3.13 -m venv .venv313
+DYLD_LIBRARY_PATH=/opt/homebrew/opt/expat/lib .venv313/bin/pip install -r apps/api/requirements.txt
+DYLD_LIBRARY_PATH=/opt/homebrew/opt/expat/lib .venv313/bin/pip install -r apps/worker/requirements.txt
+```
+
+5. Run the web app, API, and worker in separate terminals:
+
+```bash
+npm run dev:web
+npm run dev:api
+npm run dev:worker
+```
+
+## Current implemented demo flow
+
+- `GET /health`
+- `GET /api/workspaces`
+- `GET /api/workspaces/{workspace_id}`
+- `GET /api/workspaces/{workspace_id}/audit`
+- `POST /api/workspaces/{workspace_id}/chat`
+- `POST /api/documents/upload`
 
 Detailed setup and architecture notes live in [`docs/architecture.md`](./docs/architecture.md).
-

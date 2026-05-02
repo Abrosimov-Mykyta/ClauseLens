@@ -7,8 +7,9 @@
   ],
   "scripts": {
     "dev:web": "npm --workspace apps/web run dev",
+    "dev:api": "DYLD_LIBRARY_PATH=/opt/homebrew/opt/expat/lib .venv313/bin/uvicorn app.main:app --app-dir apps/api --host 127.0.0.1 --port 8000",
+    "dev:worker": "DYLD_LIBRARY_PATH=/opt/homebrew/opt/expat/lib .venv313/bin/celery --workdir apps/worker -A worker:celery_app worker --loglevel=info",
     "build:web": "npm --workspace apps/web run build",
     "lint:web": "npm --workspace apps/web run lint"
   }
 }
-

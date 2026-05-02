@@ -54,6 +54,7 @@ Next.js web app
 - Start with simple demo-backed API responses before wiring the database
 - Save uploads locally while keeping the API contract compatible with future object storage
 - Build visible dashboard pages early so the project reads well in a portfolio from the first commit
+- Standardize local backend execution on Python 3.13 because current Python 3.14 wheels around `pydantic-core` are not ready in this environment
 
 ## Planned next steps
 
@@ -62,6 +63,15 @@ Next.js web app
 3. Implement chunking and embeddings
 4. Add structured due diligence analysis prompts
 5. Replace demo chat responses with retrieval-backed answers
+
+## Current verified API slice
+
+- `GET /health`
+- `GET /api/workspaces`
+- `GET /api/workspaces/{workspace_id}`
+- `GET /api/workspaces/{workspace_id}/audit`
+- `POST /api/workspaces/{workspace_id}/chat`
+- `POST /api/documents/upload`
 
 ## Target relational model
 
