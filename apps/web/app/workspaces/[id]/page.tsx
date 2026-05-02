@@ -95,7 +95,9 @@ export default async function WorkspaceDetailPage({ params }: WorkspacePageProps
           <ul className="list">
             {workspace.documents_list.map((document) => (
               <li key={document.id} className="list-item">
-                <strong>{document.filename}</strong>
+                <strong>
+                  <Link href={`/workspaces/${id}/documents/${document.id}`}>{document.filename}</Link>
+                </strong>
                 <div className="status-row">
                   <span
                     className={`status-pill ${
@@ -113,6 +115,9 @@ export default async function WorkspaceDetailPage({ params }: WorkspacePageProps
                 <p className="helper-text">
                   Added: {document.created_at} · Updated: {document.updated_at}
                 </p>
+                <Link href={`/workspaces/${id}/documents/${document.id}`} className="helper-text">
+                  Open evidence view
+                </Link>
               </li>
             ))}
           </ul>

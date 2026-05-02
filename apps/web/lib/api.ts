@@ -34,6 +34,21 @@ export type DocumentUploadResult = {
 
 export type DocumentSummary = DocumentUploadResult & {
   created_at: string;
+  updated_at: string;
+};
+
+export type DocumentChunkExcerpt = {
+  id: string;
+  chunk_index: number;
+  citation_label: string;
+  content: string;
+  token_count: number | null;
+};
+
+export type DocumentDetail = DocumentSummary & {
+  mime_type: string | null;
+  analysis_snapshot: AnalysisSnapshot | null;
+  chunks: DocumentChunkExcerpt[];
 };
 
 export type ChatAnswer = {
@@ -179,6 +194,13 @@ export async function getWorkspaceDocuments(workspaceId: string): Promise<Docume
   } catch {
     return [];
   }
+}
+
+export async function getWorkspaceDocument(
+  workspaceId: string,
+  documentId: string,
+): Promise<DocumentDetail> {
+  return await fetchJson<DocumentDetail>(`/api/workspaces/${workspaceId}/documents/${documentId}`);
 }
 
 export async function getWorkspaceChatHistory(workspaceId: string): Promise<ChatHistoryMessage[]> {

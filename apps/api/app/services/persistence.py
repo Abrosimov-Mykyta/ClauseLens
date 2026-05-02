@@ -33,6 +33,22 @@ def serialize_workspace_summary(session: Session, workspace: Workspace) -> dict:
     }
 
 
+def serialize_analysis_snapshot(analysis: AnalysisRun | None) -> dict | None:
+    if analysis is None:
+        return None
+
+    return {
+        "id": analysis.id,
+        "status": analysis.status,
+        "summary": analysis.summary or "No summary generated yet.",
+        "red_flags": analysis.red_flags or "No red flags captured yet.",
+        "obligations": analysis.obligations or "No obligations captured yet.",
+        "follow_up_questions": analysis.follow_up_questions
+        or "No follow-up questions generated yet.",
+        "created_at": analysis.created_at.isoformat(),
+    }
+
+
 def list_workspace_summaries(session: Session) -> list[dict]:
     workspaces = session.scalars(select(Workspace).order_by(Workspace.created_at.asc())).all()
     return [serialize_workspace_summary(session, workspace) for workspace in workspaces]
@@ -86,20 +102,7 @@ def get_workspace_detail_payload(session: Session, workspace_slug: str) -> dict 
             }
             for document in documents
         ],
-        "latest_analysis": (
-            {
-                "id": latest_analysis.id,
-                "status": latest_analysis.status,
-                "summary": latest_analysis.summary or "No summary generated yet.",
-                "red_flags": latest_analysis.red_flags or "No red flags captured yet.",
-                "obligations": latest_analysis.obligations or "No obligations captured yet.",
-                "follow_up_questions": latest_analysis.follow_up_questions
-                or "No follow-up questions generated yet.",
-                "created_at": latest_analysis.created_at.isoformat(),
-            }
-            if latest_analysis is not None
-            else None
-        ),
+        "latest_analysis": serialize_analysis_snapshot(latest_analysis),
     }
 
 
@@ -148,6 +151,58 @@ def list_workspace_documents(session: Session, workspace_slug: str) -> list[dict
         }
         for document in documents
     ]
+
+
+def get_workspace_document_payload(
+    session: Session,
+    workspace_slug: str,
+    document_id: str,
+) -> dict | None:
+    workspace = get_workspace_by_slug(session, workspace_slug)
+    if workspace is None:
+        return None
+
+    document = session.scalar(
+        select(Document)
+        .where(Document.workspace_id == workspace.id, Document.id == document_id)
+        .limit(1)
+    )
+    if document is None:
+        return None
+
+    latest_analysis = session.scalar(
+        select(AnalysisRun)
+        .where(AnalysisRun.document_id == document.id)
+        .order_by(AnalysisRun.created_at.desc())
+        .limit(1)
+    )
+    chunks = session.scalars(
+        select(DocumentChunk)
+        .where(DocumentChunk.document_id == document.id)
+        .order_by(DocumentChunk.chunk_index.asc())
+    ).all()
+
+    return {
+        "id": document.id,
+        "filename": document.filename,
+        "status": document.status,
+        "stage": document.parser_stage,
+        "created_at": document.created_at.isoformat(),
+        "updated_at": document.updated_at.isoformat(),
+        "mime_type": document.mime_type,
+        "analysis_snapshot": serialize_analysis_snapshot(latest_analysis),
+        "chunks": [
+            {
+                "id": chunk.id,
+                "chunk_index": chunk.chunk_index,
+                "citation_label": chunk.citation_label
+                or f"{document.filename}#chunk-{chunk.chunk_index + 1}",
+                "content": chunk.content,
+                "token_count": chunk.token_count,
+            }
+            for chunk in chunks
+        ],
+    }
 
 
 def list_workspace_chat_history(session: Session, workspace_slug: str) -> list[dict]:
