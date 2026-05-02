@@ -184,6 +184,65 @@ body {
   padding-top: 12px;
 }
 
+.upload-dropzone {
+  display: grid;
+  gap: 10px;
+  border: 1px dashed rgba(24, 34, 45, 0.24);
+  border-radius: 20px;
+  padding: 18px;
+  margin-top: 18px;
+  background: rgba(248, 241, 232, 0.65);
+}
+
+.upload-dropzone input {
+  font: inherit;
+}
+
+.helper-text {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.error-text {
+  color: #a33f2f;
+  font-size: 0.95rem;
+}
+
+.result-box {
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(44, 122, 98, 0.08);
+  border: 1px solid rgba(44, 122, 98, 0.18);
+}
+
+.composer {
+  margin-top: 20px;
+  border-top: 1px solid var(--border);
+  padding-top: 20px;
+}
+
+.composer-input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 14px 16px;
+  font: inherit;
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--foreground);
+  resize: vertical;
+}
+
+.composer-input:focus {
+  outline: 2px solid rgba(201, 109, 66, 0.24);
+  border-color: rgba(201, 109, 66, 0.45);
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 @media (max-width: 900px) {
   .hero,
   .workspace-grid {
@@ -194,4 +253,3 @@ body {
     width: min(100vw - 28px, 1200px);
   }
 }
-

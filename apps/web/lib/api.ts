@@ -23,6 +23,18 @@ export type AuditEvent = {
   created_at: string;
 };
 
+export type DocumentUploadResult = {
+  id: string;
+  filename: string;
+  status: string;
+  stage: string;
+};
+
+export type ChatAnswer = {
+  answer: string;
+  citations: string[];
+};
+
 async function fetchJson<T>(path: string): Promise<T> {
   const response = await fetch(`${apiBaseUrl}${path}`, {
     cache: "no-store",
@@ -79,3 +91,37 @@ export async function getAuditEvents(workspaceId: string): Promise<AuditEvent[]>
   }
 }
 
+export async function uploadDocument(file: File): Promise<DocumentUploadResult> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch(`${apiBaseUrl}/api/documents/upload`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error("Upload failed");
+  }
+
+  return (await response.json()) as DocumentUploadResult;
+}
+
+export async function askWorkspaceQuestion(
+  workspaceId: string,
+  question: string,
+): Promise<ChatAnswer> {
+  const response = await fetch(`${apiBaseUrl}/api/workspaces/${workspaceId}/chat`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ question }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Question failed");
+  }
+
+  return (await response.json()) as ChatAnswer;
+}

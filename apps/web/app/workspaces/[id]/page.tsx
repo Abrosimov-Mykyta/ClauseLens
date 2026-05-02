@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Topbar } from "../../../components/topbar";
+import { UploadPanel } from "../../../components/upload-panel";
 import { getAuditEvents, getWorkspace } from "../../../lib/api";
 
 type WorkspacePageProps = {
@@ -37,6 +38,8 @@ export default async function WorkspaceDetailPage({ params }: WorkspacePageProps
             <li className="list-item">3. Generate embeddings and structured analysis</li>
           </ul>
         </article>
+
+        <UploadPanel workspaceName={workspace.name} />
 
         <article className="workspace-card">
           <h3>Risk outputs</h3>

@@ -1,3 +1,4 @@
+import { ChatConsole } from "../../../../components/chat-console";
 import { Topbar } from "../../../../components/topbar";
 
 type ChatPageProps = {
@@ -6,13 +7,14 @@ type ChatPageProps = {
 
 const messages = [
   {
-    role: "user",
+    role: "user" as const,
     content: "Which clauses look risky in the supplier agreement?",
   },
   {
-    role: "assistant",
+    role: "assistant" as const,
     content:
       "Three clauses stand out: a broad indemnity obligation, an auto-renewal section with a short cancellation window, and a change-of-control restriction. Each answer should later cite supporting chunks from the indexed documents.",
+    citations: ["supplier-agreement.pdf#section-4", "supplier-agreement.pdf#section-9"],
   },
 ];
 
@@ -31,17 +33,7 @@ export default async function WorkspaceChatPage({ params }: ChatPageProps) {
         </p>
       </section>
 
-      <section className="panel" style={{ marginTop: 24 }}>
-        <div className="list">
-          {messages.map((message) => (
-            <article key={`${message.role}-${message.content.slice(0, 12)}`} className="list-item">
-              <strong>{message.role === "user" ? "Reviewer" : "ClauseLens AI"}</strong>
-              <p className="lede">{message.content}</p>
-            </article>
-          ))}
-        </div>
-      </section>
+      <ChatConsole workspaceId={id} initialMessages={messages} />
     </main>
   );
 }
-

@@ -52,6 +52,8 @@ npm run dev:api
 npm run dev:worker
 ```
 
+The web script includes a `NODE_OPTIONS=--no-experimental-webstorage` runtime fix because the local Node 25 environment exposes a broken server-side `localStorage` object that otherwise causes Next.js dev rendering to fail.
+
 ## Current implemented demo flow
 
 - `GET /health`
