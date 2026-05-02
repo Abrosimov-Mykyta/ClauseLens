@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { Topbar } from "../../components/topbar";
-import { workspaces } from "../../lib/demo-data";
+import { getWorkspaces } from "../../lib/api";
 
-export default function WorkspacesPage() {
+export default async function WorkspacesPage() {
+  const workspaces = await getWorkspaces();
+
   return (
     <main className="page-shell">
       <Topbar />
@@ -22,7 +24,6 @@ export default function WorkspacesPage() {
               {workspace.status === "ready" ? "Ready" : "Processing"}
             </div>
             <h3>{workspace.name}</h3>
-            <p>{workspace.updatedAt}</p>
             <p className="lede">
               {workspace.documents} documents under review, {workspace.risks} current risks.
             </p>
@@ -40,4 +41,3 @@ export default function WorkspacesPage() {
     </main>
   );
 }
-

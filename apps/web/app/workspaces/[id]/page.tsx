@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Topbar } from "../../../components/topbar";
+import { getAuditEvents, getWorkspace } from "../../../lib/api";
 
 type WorkspacePageProps = {
   params: Promise<{ id: string }>;
@@ -7,18 +8,24 @@ type WorkspacePageProps = {
 
 export default async function WorkspaceDetailPage({ params }: WorkspacePageProps) {
   const { id } = await params;
+  const workspace = await getWorkspace(id);
+  const auditEvents = await getAuditEvents(id);
 
   return (
     <main className="page-shell">
       <Topbar />
       <section className="panel">
         <div className="eyebrow">Workspace detail</div>
-        <h1 className="section-title">Review workspace: {id}</h1>
+        <h1 className="section-title">{workspace.name}</h1>
         <p className="lede">
-          This screen will host uploads, ingestion status, extracted findings, and the workspace
-          audit stream. For today, we are laying down the page contract and design shell so the
-          API can plug in cleanly.
+          {workspace.description}
         </p>
+        <div className="cta-row">
+          <div className="status-pill">
+            {workspace.status === "ready" ? "Ready for review" : "Processing"}
+          </div>
+          <div className="status-pill">{workspace.members} reviewers</div>
+        </div>
       </section>
 
       <section className="workspace-grid" style={{ marginTop: 24 }}>
@@ -41,6 +48,17 @@ export default async function WorkspaceDetailPage({ params }: WorkspacePageProps
         </article>
 
         <article className="workspace-card">
+          <h3>Recent activity</h3>
+          <ul className="list">
+            {workspace.recent_activity.map((item) => (
+              <li key={item} className="list-item">
+                {item}
+              </li>
+            ))}
+          </ul>
+        </article>
+
+        <article className="workspace-card">
           <h3>Next interaction</h3>
           <p className="lede">
             Move to the AI chat surface for cited follow-up questions over the indexed corpus.
@@ -50,7 +68,19 @@ export default async function WorkspaceDetailPage({ params }: WorkspacePageProps
           </Link>
         </article>
       </section>
+
+      <section className="panel" style={{ marginTop: 24 }}>
+        <h2>Audit timeline</h2>
+        <ul className="list">
+          {auditEvents.map((event) => (
+            <li key={event.id} className="list-item">
+              <strong>{event.event_type}</strong>
+              <p className="lede">{event.message}</p>
+              <small>{event.created_at}</small>
+            </li>
+          ))}
+        </ul>
+      </section>
     </main>
   );
 }
-

@@ -8,3 +8,8 @@ class WorkspaceSummary(BaseModel):
     documents: int
     risks: int
 
+
+class WorkspaceDetail(WorkspaceSummary):
+    description: str
+    members: int
+    recent_activity: list[str]

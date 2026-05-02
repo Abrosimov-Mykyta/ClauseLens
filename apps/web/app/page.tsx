@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { Topbar } from "../components/topbar";
-import { highlights, workspaces } from "../lib/demo-data";
+import { getWorkspaces } from "../lib/api";
+import { highlights } from "../lib/demo-data";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const workspaces = await getWorkspaces();
+
   return (
     <main className="page-shell">
       <Topbar />
@@ -59,7 +62,6 @@ export default function HomePage() {
             <p className="lede">
               {workspace.documents} documents, {workspace.risks} flagged issues.
             </p>
-            <p>{workspace.updatedAt}</p>
           </Link>
         ))}
       </section>
@@ -77,4 +79,3 @@ export default function HomePage() {
     </main>
   );
 }
-

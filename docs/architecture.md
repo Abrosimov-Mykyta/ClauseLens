@@ -63,3 +63,14 @@ Next.js web app
 4. Add structured due diligence analysis prompts
 5. Replace demo chat responses with retrieval-backed answers
 
+## Target relational model
+
+- `users`: reviewers and future team members
+- `workspaces`: due diligence containers scoped by organization later
+- `workspace_members`: role assignments per workspace
+- `documents`: uploaded source files and ingestion state
+- `document_chunks`: parsed text units with citation labels and future embeddings
+- `analysis_runs`: AI-generated summaries, red flags, obligations, and follow-ups
+- `chat_sessions`: grouped question-and-answer threads
+- `chat_messages`: stored prompts, answers, and citations
+- `audit_logs`: append-only operational history for user and system actions

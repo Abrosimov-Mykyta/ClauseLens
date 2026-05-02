@@ -1,4 +1,4 @@
-export type WorkspaceSummary = {
+export type DemoWorkspaceSummary = {
   id: string;
   name: string;
   status: "ready" | "processing";
@@ -7,7 +7,7 @@ export type WorkspaceSummary = {
   updatedAt: string;
 };
 
-export const workspaces: WorkspaceSummary[] = [
+export const workspaces: DemoWorkspaceSummary[] = [
   {
     id: "ws-acme",
     name: "Acme Acquisition Review",
@@ -39,4 +39,3 @@ export const highlights = [
   "Two indemnity clauses exceed the configured risk threshold",
   "Missing termination notice period in one supplier agreement",
 ];
-
