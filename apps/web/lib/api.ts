@@ -203,6 +203,24 @@ export async function getWorkspaceDocument(
   return await fetchJson<DocumentDetail>(`/api/workspaces/${workspaceId}/documents/${documentId}`);
 }
 
+export async function requeueWorkspaceDocument(
+  workspaceId: string,
+  documentId: string,
+): Promise<DocumentSummary> {
+  const response = await fetch(
+    `${apiBaseUrl}/api/workspaces/${workspaceId}/documents/${documentId}/requeue`,
+    {
+      method: "POST",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error("Requeue failed");
+  }
+
+  return (await response.json()) as DocumentSummary;
+}
+
 export async function getWorkspaceChatHistory(workspaceId: string): Promise<ChatHistoryMessage[]> {
   try {
     return await fetchJson<ChatHistoryMessage[]>(`/api/workspaces/${workspaceId}/chat/history`);

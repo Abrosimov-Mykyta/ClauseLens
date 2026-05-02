@@ -13,6 +13,7 @@ from app.services.persistence import (
     list_workspace_documents,
     list_workspace_audit_events,
     list_workspace_summaries,
+    requeue_workspace_document,
 )
 
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
@@ -88,3 +89,31 @@ def get_workspace_chat_history(
     db: Session = Depends(get_db),
 ) -> list[ChatHistoryMessage]:
     return [ChatHistoryMessage(**item) for item in list_workspace_chat_history(db, workspace_id)]
+
+
+@router.post("/{workspace_id}/documents/{document_id}/requeue", response_model=DocumentSummary)
+def requeue_document_analysis(
+    workspace_id: str,
+    document_id: str,
+    db: Session = Depends(get_db),
+) -> DocumentSummary:
+    document = requeue_workspace_document(db, workspace_id, document_id)
+    if document is None:
+        fallback = {
+            "id": document_id,
+            "filename": "Unknown document",
+            "status": "missing",
+            "stage": "unavailable",
+            "created_at": "",
+            "updated_at": "",
+        }
+        return DocumentSummary(**fallback)
+
+    return DocumentSummary(
+        id=document.id,
+        filename=document.filename,
+        status=document.status,
+        stage=document.parser_stage,
+        created_at=document.created_at.isoformat(),
+        updated_at=document.updated_at.isoformat(),
+    )

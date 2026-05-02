@@ -205,6 +205,41 @@ def get_workspace_document_payload(
     }
 
 
+def requeue_workspace_document(
+    session: Session,
+    workspace_slug: str,
+    document_id: str,
+) -> Document | None:
+    workspace = get_workspace_by_slug(session, workspace_slug)
+    if workspace is None:
+        return None
+
+    document = session.scalar(
+        select(Document)
+        .where(Document.workspace_id == workspace.id, Document.id == document_id)
+        .limit(1)
+    )
+    if document is None:
+        return None
+
+    document.status = "uploaded"
+    document.parser_stage = "queued"
+    session.add(document)
+
+    actor = session.scalar(select(User).where(User.email == DEFAULT_USER_EMAIL))
+    session.add(
+        AuditLog(
+            workspace_id=workspace.id,
+            actor_id=actor.id if actor else None,
+            event_type="analysis.requeued",
+            message=f"Requeued {document.filename} for another analysis pass",
+        )
+    )
+    session.commit()
+    session.refresh(document)
+    return document
+
+
 def list_workspace_chat_history(session: Session, workspace_slug: str) -> list[dict]:
     workspace = get_workspace_by_slug(session, workspace_slug)
     if workspace is None:

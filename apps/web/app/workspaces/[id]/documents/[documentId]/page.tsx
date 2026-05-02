@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { DocumentActions } from "../../../../../components/document-actions";
 import { Topbar } from "../../../../../components/topbar";
 import { getWorkspaceDocument } from "../../../../../lib/api";
 
@@ -85,6 +86,13 @@ export default async function DocumentDetailPage({ params }: DocumentDetailPageP
             <li className="list-item">Continue the conversation in AI chat for targeted diligence questions.</li>
           </ul>
         </article>
+
+        <DocumentActions
+          workspaceId={id}
+          documentId={document.id}
+          initialStatus={document.status}
+          initialStage={document.stage}
+        />
       </section>
 
       <section className="panel" style={{ marginTop: 24 }}>
