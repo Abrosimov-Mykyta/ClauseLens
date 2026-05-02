@@ -71,4 +71,6 @@ If `OPENAI_API_KEY` is configured, new uploads run through a real OpenAI-backed 
 
 The current workspace UI now reflects persisted documents, a generated analysis snapshot, and saved chat history from the local database.
 
+Grounded chat answers now pull from persisted document chunks and analysis snapshots, and the assistant returns citation labels that point back to those indexed sources.
+
 Detailed setup and architecture notes live in [`docs/architecture.md`](./docs/architecture.md).

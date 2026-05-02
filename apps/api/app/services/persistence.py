@@ -1,3 +1,5 @@
+import re
+
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -8,10 +10,12 @@ from app.models import (
     ChatMessage,
     ChatSession,
     Document,
+    DocumentChunk,
     User,
     Workspace,
     WorkspaceMember,
 )
+from app.services.openai_chat import answer_with_openai
 
 
 def serialize_workspace_summary(session: Session, workspace: Workspace) -> dict:
@@ -168,6 +172,66 @@ def list_workspace_chat_history(session: Session, workspace_slug: str) -> list[d
     ]
 
 
+def _tokenize_query(text: str) -> set[str]:
+    return {token for token in re.findall(r"[a-zA-Z]{3,}", text.lower())}
+
+
+def _build_chat_context(session: Session, workspace: Workspace, question: str) -> list[dict[str, str]]:
+    query_tokens = _tokenize_query(question)
+    contexts: list[dict[str, str]] = []
+
+    chunk_rows = session.execute(
+        select(DocumentChunk, Document)
+        .join(Document, Document.id == DocumentChunk.document_id)
+        .where(Document.workspace_id == workspace.id)
+        .order_by(Document.created_at.desc(), DocumentChunk.chunk_index.asc())
+    ).all()
+
+    for row in chunk_rows:
+        chunk, document = row
+        content_lower = chunk.content.lower()
+        overlap_score = sum(1 for token in query_tokens if token in content_lower)
+        contexts.append(
+            {
+                "type": "document_chunk",
+                "label": document.filename,
+                "citation": chunk.citation_label or f"{document.filename}#chunk-{chunk.chunk_index + 1}",
+                "content": chunk.content,
+                "score": overlap_score + 3,
+            }
+        )
+
+    analysis_runs = session.scalars(
+        select(AnalysisRun)
+        .where(AnalysisRun.workspace_id == workspace.id)
+        .order_by(AnalysisRun.created_at.desc())
+        .limit(3)
+    ).all()
+
+    for analysis in analysis_runs:
+        if analysis.summary:
+            analysis_sections = [
+                ("summary", analysis.summary, 2),
+                ("red_flags", analysis.red_flags or "", 3),
+                ("obligations", analysis.obligations or "", 2),
+                ("follow_up_questions", analysis.follow_up_questions or "", 1),
+            ]
+            for section_name, content, base_score in analysis_sections:
+                overlap_score = sum(1 for token in query_tokens if token in content.lower())
+                contexts.append(
+                    {
+                        "type": "analysis",
+                        "label": f"analysis {section_name}",
+                        "citation": f"analysis:{analysis.id}:{section_name}",
+                        "content": content,
+                        "score": overlap_score + base_score,
+                    }
+                )
+
+    ranked_contexts = sorted(contexts, key=lambda item: item["score"], reverse=True)
+    return ranked_contexts[:8]
+
+
 def create_document_record(
     session: Session,
     workspace_slug: str,
@@ -175,6 +239,7 @@ def create_document_record(
     filename: str,
     storage_path: str,
     mime_type: str | None,
+    chunks: list[str],
     analysis_payload: dict[str, str],
 ) -> Document:
     workspace = get_workspace_by_slug(session, workspace_slug)
@@ -191,6 +256,17 @@ def create_document_record(
     )
     session.add(document)
     session.flush()
+
+    for index, chunk_text in enumerate(chunks):
+        session.add(
+            DocumentChunk(
+                document_id=document.id,
+                chunk_index=index,
+                content=chunk_text,
+                token_count=len(chunk_text.split()),
+                citation_label=f"{filename}#chunk-{index + 1}",
+            )
+        )
 
     analysis = AnalysisRun(
         workspace_id=workspace.id,
@@ -255,15 +331,10 @@ def create_chat_exchange(session: Session, workspace_slug: str, question: str) -
         content=question,
     )
 
-    citations = [
-        f"{workspace.slug}-document-summary#overview",
-        f"{workspace.slug}-risk-register#top-items",
-    ]
-    answer = (
-        f"ClauseLens reviewed the indexed material for {workspace.name} and would start with "
-        f"change-of-control language, indemnity exposure, and termination mechanics before "
-        f"answering the question: '{question}'."
-    )
+    contexts = _build_chat_context(session, workspace, question)
+    response = answer_with_openai(question, workspace.name, contexts)
+    citations = [str(citation) for citation in response.get("citations", [])]
+    answer = str(response.get("answer", ""))
     assistant_message = ChatMessage(
         session_id=chat_session.id,
         role="assistant",

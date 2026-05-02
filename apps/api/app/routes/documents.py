@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.db import get_db
 from app.schemas.documents import DocumentStatus
+from app.services.chunker import chunk_document_text
 from app.services.document_parser import extract_document_text
 from app.services.openai_analysis import analyze_with_openai
 from app.services.persistence import create_document_record
@@ -25,6 +26,7 @@ async def upload_document(
     contents = await file.read()
     target.write_bytes(contents)
     document_text = extract_document_text(str(target), file.content_type)
+    chunks = chunk_document_text(document_text)
     analysis_payload = analyze_with_openai(file.filename, document_text)
 
     try:
@@ -34,6 +36,7 @@ async def upload_document(
             filename=file.filename,
             storage_path=str(target),
             mime_type=file.content_type,
+            chunks=chunks,
             analysis_payload=analysis_payload,
         )
     except ValueError as exc:
