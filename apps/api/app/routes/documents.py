@@ -1,25 +1,42 @@
 from pathlib import Path
 
-from fastapi import APIRouter, File, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.db import get_db
 from app.schemas.documents import DocumentStatus
+from app.services.persistence import create_document_record
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
 
 @router.post("/upload", response_model=DocumentStatus)
-async def upload_document(file: UploadFile = File(...)) -> DocumentStatus:
+async def upload_document(
+    workspace_id: str = Form(...),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+) -> DocumentStatus:
     upload_dir = Path(settings.upload_dir)
     upload_dir.mkdir(parents=True, exist_ok=True)
     target = upload_dir / file.filename
     contents = await file.read()
     target.write_bytes(contents)
 
-    return DocumentStatus(
-        id=f"doc-{file.filename}",
-        filename=file.filename,
-        status="uploaded",
-        stage="queued-for-processing",
-    )
+    try:
+        document = create_document_record(
+            db,
+            workspace_id,
+            filename=file.filename,
+            storage_path=str(target),
+            mime_type=file.content_type,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
+    return DocumentStatus(
+        id=document.id,
+        filename=document.filename,
+        status=document.status,
+        stage=document.parser_stage,
+    )

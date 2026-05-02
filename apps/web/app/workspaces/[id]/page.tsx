@@ -39,7 +39,7 @@ export default async function WorkspaceDetailPage({ params }: WorkspacePageProps
           </ul>
         </article>
 
-        <UploadPanel workspaceName={workspace.name} />
+        <UploadPanel workspaceId={id} workspaceName={workspace.name} />
 
         <article className="workspace-card">
           <h3>Risk outputs</h3>

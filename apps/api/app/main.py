@@ -1,7 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.core.bootstrap import seed_database
 from app.core.config import settings
+from app.core.db import Base, SessionLocal, engine
+from app.models import AuditLog, AnalysisRun, ChatMessage, ChatSession, Document, DocumentChunk, User, Workspace, WorkspaceMember
 from app.routes.chat import router as chat_router
 from app.routes.documents import router as documents_router
 from app.routes.health import router as health_router
@@ -16,6 +19,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+def initialize_database() -> None:
+    Base.metadata.create_all(bind=engine)
+    with SessionLocal() as session:
+        seed_database(session)
+
 
 app.include_router(health_router)
 app.include_router(workspaces_router, prefix="/api")

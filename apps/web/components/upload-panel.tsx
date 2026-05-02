@@ -1,14 +1,17 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { uploadDocument, type DocumentUploadResult } from "../lib/api";
 
 type UploadPanelProps = {
+  workspaceId: string;
   workspaceName: string;
 };
 
-export function UploadPanel({ workspaceName }: UploadPanelProps) {
+export function UploadPanel({ workspaceId, workspaceName }: UploadPanelProps) {
+  const router = useRouter();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [result, setResult] = useState<DocumentUploadResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -44,9 +47,10 @@ export function UploadPanel({ workspaceName }: UploadPanelProps) {
 
             startTransition(async () => {
               try {
-                const response = await uploadDocument(selectedFile);
+                const response = await uploadDocument(workspaceId, selectedFile);
                 setResult(response);
                 setError(null);
+                router.refresh();
               } catch {
                 setError("Upload failed. Check that the API is running and try again.");
               }
@@ -71,4 +75,3 @@ export function UploadPanel({ workspaceName }: UploadPanelProps) {
     </div>
   );
 }
-

@@ -91,8 +91,12 @@ export async function getAuditEvents(workspaceId: string): Promise<AuditEvent[]>
   }
 }
 
-export async function uploadDocument(file: File): Promise<DocumentUploadResult> {
+export async function uploadDocument(
+  workspaceId: string,
+  file: File,
+): Promise<DocumentUploadResult> {
   const formData = new FormData();
+  formData.append("workspace_id", workspaceId);
   formData.append("file", file);
 
   const response = await fetch(`${apiBaseUrl}/api/documents/upload`, {

@@ -28,7 +28,7 @@ infra/
 - Frontend: Next.js, TypeScript, Tailwind CSS
 - Backend: FastAPI, SQLAlchemy, Pydantic
 - Worker: Celery with Redis
-- Data: Postgres, pgvector, local file storage for MVP
+- Data: SQLite by default for local MVP, Postgres and pgvector when configured, local file storage for MVP
 - AI: OpenAI for embeddings, structured analysis, and Q&A
 
 ## Local development
@@ -53,6 +53,8 @@ npm run dev:worker
 ```
 
 The web script includes a `NODE_OPTIONS=--no-experimental-webstorage` runtime fix because the local Node 25 environment exposes a broken server-side `localStorage` object that otherwise causes Next.js dev rendering to fail.
+
+By default the API uses a local SQLite database file at `apps/api/clauselens.db` for a zero-setup demo flow. Set `DATABASE_URL_OVERRIDE` in `.env` if you want to point the backend at Postgres instead.
 
 ## Current implemented demo flow
 

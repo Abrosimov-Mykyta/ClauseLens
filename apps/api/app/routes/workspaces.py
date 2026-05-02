@@ -1,20 +1,26 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
 
+from app.core.db import get_db
 from app.schemas.audit import AuditEvent
 from app.schemas.workspaces import WorkspaceDetail, WorkspaceSummary
-from app.services.demo_store import get_workspace, list_audit_events, list_workspaces
+from app.services.persistence import (
+    get_workspace_detail_payload,
+    list_workspace_audit_events,
+    list_workspace_summaries,
+)
 
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
 
 
 @router.get("", response_model=list[WorkspaceSummary])
-def get_workspaces() -> list[WorkspaceSummary]:
-    return [WorkspaceSummary(**item) for item in list_workspaces()]
+def get_workspaces(db: Session = Depends(get_db)) -> list[WorkspaceSummary]:
+    return [WorkspaceSummary(**item) for item in list_workspace_summaries(db)]
 
 
 @router.get("/{workspace_id}", response_model=WorkspaceDetail)
-def get_workspace_detail(workspace_id: str) -> WorkspaceDetail:
-    workspace = get_workspace(workspace_id)
+def get_workspace_detail(workspace_id: str, db: Session = Depends(get_db)) -> WorkspaceDetail:
+    workspace = get_workspace_detail_payload(db, workspace_id)
     if workspace is None:
         fallback = {
             "id": workspace_id,
@@ -31,5 +37,8 @@ def get_workspace_detail(workspace_id: str) -> WorkspaceDetail:
 
 
 @router.get("/{workspace_id}/audit", response_model=list[AuditEvent])
-def get_workspace_audit(workspace_id: str) -> list[AuditEvent]:
-    return [AuditEvent(**item) for item in list_audit_events(workspace_id)]
+def get_workspace_audit(
+    workspace_id: str,
+    db: Session = Depends(get_db),
+) -> list[AuditEvent]:
+    return [AuditEvent(**item) for item in list_workspace_audit_events(db, workspace_id)]
