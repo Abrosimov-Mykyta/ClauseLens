@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -16,6 +17,22 @@ export function UploadPanel({ workspaceId, workspaceName }: UploadPanelProps) {
   const [result, setResult] = useState<DocumentUploadResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (!result) {
+      return;
+    }
+
+    if (result.status === "ready" || result.status === "failed") {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      router.refresh();
+    }, 2500);
+
+    return () => window.clearInterval(intervalId);
+  }, [result, router]);
 
   return (
     <div className="workspace-card">
@@ -69,6 +86,12 @@ export function UploadPanel({ workspaceId, workspaceName }: UploadPanelProps) {
             {result.filename} is now <strong>{result.status}</strong> and marked as{" "}
             <strong>{result.stage}</strong>.
           </p>
+          {result.status !== "ready" ? (
+            <p className="helper-text">
+              The worker will advance this document through parsing, chunking, and analysis. The
+              page refreshes automatically while it is still in progress.
+            </p>
+          ) : null}
         </div>
       ) : null}
       {error ? <p className="error-text">{error}</p> : null}

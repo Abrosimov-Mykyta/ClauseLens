@@ -82,6 +82,7 @@ def get_workspace_detail_payload(session: Session, workspace_slug: str) -> dict 
                 "status": document.status,
                 "stage": document.parser_stage,
                 "created_at": document.created_at.isoformat(),
+                "updated_at": document.updated_at.isoformat(),
             }
             for document in documents
         ],
@@ -143,6 +144,7 @@ def list_workspace_documents(session: Session, workspace_slug: str) -> list[dict
             "status": document.status,
             "stage": document.parser_stage,
             "created_at": document.created_at.isoformat(),
+            "updated_at": document.updated_at.isoformat(),
         }
         for document in documents
     ]
@@ -232,15 +234,13 @@ def _build_chat_context(session: Session, workspace: Workspace, question: str) -
     return ranked_contexts[:8]
 
 
-def create_document_record(
+def create_document_upload_record(
     session: Session,
     workspace_slug: str,
     *,
     filename: str,
     storage_path: str,
     mime_type: str | None,
-    chunks: list[str],
-    analysis_payload: dict[str, str],
 ) -> Document:
     workspace = get_workspace_by_slug(session, workspace_slug)
     if workspace is None:
@@ -251,11 +251,85 @@ def create_document_record(
         filename=filename,
         storage_path=storage_path,
         mime_type=mime_type,
-        status="ready",
-        parser_stage="analyzed",
+        status="uploaded",
+        parser_stage="queued",
     )
     session.add(document)
     session.flush()
+
+    actor = session.scalar(select(User).where(User.email == DEFAULT_USER_EMAIL))
+    session.add(
+        AuditLog(
+            workspace_id=workspace.id,
+            actor_id=actor.id if actor else None,
+            event_type="document.uploaded",
+            message=f"Uploaded {filename}",
+        )
+    )
+    session.commit()
+    session.refresh(document)
+    return document
+
+
+def get_document_by_id(session: Session, document_id: str) -> Document | None:
+    return session.scalar(select(Document).where(Document.id == document_id))
+
+
+def claim_next_document_for_processing(session: Session) -> Document | None:
+    document = session.scalar(
+        select(Document)
+        .where(Document.status == "uploaded", Document.parser_stage == "queued")
+        .order_by(Document.created_at.asc())
+        .limit(1)
+    )
+    if document is None:
+        return None
+
+    document.status = "processing"
+    document.parser_stage = "parsing"
+    session.add(document)
+    session.add(
+        AuditLog(
+            workspace_id=document.workspace_id,
+            actor_id=None,
+            event_type="analysis.started",
+            message=f"Started processing {document.filename}",
+        )
+    )
+    session.commit()
+    session.refresh(document)
+    return document
+
+
+def mark_document_stage(session: Session, document_id: str, *, status: str, parser_stage: str) -> Document:
+    document = get_document_by_id(session, document_id)
+    if document is None:
+        raise ValueError("Document not found")
+
+    document.status = status
+    document.parser_stage = parser_stage
+    session.add(document)
+    session.commit()
+    session.refresh(document)
+    return document
+
+
+def complete_document_processing(
+    session: Session,
+    document_id: str,
+    *,
+    chunks: list[str],
+    analysis_payload: dict[str, str],
+) -> Document:
+    document = get_document_by_id(session, document_id)
+    if document is None:
+        raise ValueError("Document not found")
+
+    workspace = session.scalar(select(Workspace).where(Workspace.id == document.workspace_id))
+    if workspace is None:
+        raise ValueError("Workspace not found")
+
+    session.query(DocumentChunk).filter(DocumentChunk.document_id == document.id).delete()
 
     for index, chunk_text in enumerate(chunks):
         session.add(
@@ -264,7 +338,7 @@ def create_document_record(
                 chunk_index=index,
                 content=chunk_text,
                 token_count=len(chunk_text.split()),
-                citation_label=f"{filename}#chunk-{index + 1}",
+                citation_label=f"{document.filename}#chunk-{index + 1}",
             )
         )
 
@@ -280,21 +354,40 @@ def create_document_record(
     session.add(analysis)
 
     actor = session.scalar(select(User).where(User.email == DEFAULT_USER_EMAIL))
-    session.add_all(
-        [
-            AuditLog(
-                workspace_id=workspace.id,
-                actor_id=actor.id if actor else None,
-                event_type="document.uploaded",
-                message=f"Uploaded {filename}",
-            ),
-            AuditLog(
-                workspace_id=workspace.id,
-                actor_id=actor.id if actor else None,
-                event_type="analysis.completed",
-                message=f"Generated initial analysis snapshot for {filename}",
-            ),
-        ]
+    session.add(
+        AuditLog(
+            workspace_id=workspace.id,
+            actor_id=actor.id if actor else None,
+            event_type="analysis.completed",
+            message=f"Generated initial analysis snapshot for {document.filename}",
+        )
+    )
+
+    document.status = "ready"
+    document.parser_stage = "analyzed"
+    session.add(document)
+    session.commit()
+    session.refresh(document)
+    return document
+
+
+def fail_document_processing(session: Session, document_id: str, reason: str) -> Document:
+    document = get_document_by_id(session, document_id)
+    if document is None:
+        raise ValueError("Document not found")
+
+    document.status = "failed"
+    document.parser_stage = "failed"
+    session.add(document)
+
+    actor = session.scalar(select(User).where(User.email == DEFAULT_USER_EMAIL))
+    session.add(
+        AuditLog(
+            workspace_id=document.workspace_id,
+            actor_id=actor.id if actor else None,
+            event_type="analysis.failed",
+            message=f"Document processing failed for {document.filename}: {reason}",
+        )
     )
     session.commit()
     session.refresh(document)

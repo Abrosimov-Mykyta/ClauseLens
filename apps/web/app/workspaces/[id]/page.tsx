@@ -96,8 +96,22 @@ export default async function WorkspaceDetailPage({ params }: WorkspacePageProps
             {workspace.documents_list.map((document) => (
               <li key={document.id} className="list-item">
                 <strong>{document.filename}</strong>
+                <div className="status-row">
+                  <span
+                    className={`status-pill ${
+                      document.status === "ready"
+                        ? ""
+                        : document.status === "failed"
+                          ? "status-pill-warn"
+                          : "status-pill-neutral"
+                    }`}
+                  >
+                    {document.status}
+                  </span>
+                  <span className="status-pill status-pill-neutral">{document.stage}</span>
+                </div>
                 <p className="helper-text">
-                  Status: {document.status} · Stage: {document.stage} · Added: {document.created_at}
+                  Added: {document.created_at} · Updated: {document.updated_at}
                 </p>
               </li>
             ))}

@@ -28,6 +28,7 @@ infra/
 - Frontend: Next.js, TypeScript, Tailwind CSS
 - Backend: FastAPI, SQLAlchemy, Pydantic
 - Worker: Celery with Redis
+- Worker: DB-backed polling worker for the local MVP
 - Data: SQLite by default for local MVP, Postgres and pgvector when configured, local file storage for MVP
 - AI: OpenAI for embeddings, structured analysis, and Q&A
 
@@ -41,7 +42,6 @@ infra/
 ```bash
 DYLD_LIBRARY_PATH=/opt/homebrew/opt/expat/lib python3.13 -m venv .venv313
 DYLD_LIBRARY_PATH=/opt/homebrew/opt/expat/lib .venv313/bin/pip install -r apps/api/requirements.txt
-DYLD_LIBRARY_PATH=/opt/homebrew/opt/expat/lib .venv313/bin/pip install -r apps/worker/requirements.txt
 ```
 
 5. Run the web app, API, and worker in separate terminals:
@@ -72,5 +72,7 @@ If `OPENAI_API_KEY` is configured, new uploads run through a real OpenAI-backed 
 The current workspace UI now reflects persisted documents, a generated analysis snapshot, and saved chat history from the local database.
 
 Grounded chat answers now pull from persisted document chunks and analysis snapshots, and the assistant returns citation labels that point back to those indexed sources.
+
+Uploads now enter the system in a queued state and are completed by the local worker process. Run `npm run dev:worker` alongside the API and web app to see documents transition through parsing, chunking, analysis, and final readiness.
 
 Detailed setup and architecture notes live in [`docs/architecture.md`](./docs/architecture.md).

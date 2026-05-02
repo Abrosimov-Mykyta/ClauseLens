@@ -171,6 +171,23 @@ body {
   font-size: 0.85rem;
 }
 
+.status-pill-neutral {
+  background: rgba(24, 34, 45, 0.08);
+  color: var(--foreground);
+}
+
+.status-pill-warn {
+  background: rgba(201, 109, 66, 0.12);
+  color: #9b4d28;
+}
+
+.status-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
 .list {
   display: grid;
   gap: 12px;

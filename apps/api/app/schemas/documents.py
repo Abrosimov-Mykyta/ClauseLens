@@ -10,3 +10,4 @@ class DocumentStatus(BaseModel):
 
 class DocumentSummary(DocumentStatus):
     created_at: str
+    updated_at: str
