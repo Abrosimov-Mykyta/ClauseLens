@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.db import get_db
 from app.schemas.documents import DocumentStatus
+from app.services.document_processing import process_document
 from app.services.persistence import create_document_upload_record
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -33,6 +34,15 @@ async def upload_document(
         )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    if settings.processing_mode == "inline":
+        result = process_document(db, document.id)
+        return DocumentStatus(
+            id=document.id,
+            filename=document.filename,
+            status=result["status"],
+            stage=result["stage"],
+        )
 
     return DocumentStatus(
         id=document.id,

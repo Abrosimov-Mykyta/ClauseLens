@@ -1,11 +1,13 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.db import get_db
 from app.schemas.audit import AuditEvent
 from app.schemas.chat import ChatHistoryMessage
 from app.schemas.documents import DocumentDetail, DocumentSummary
 from app.schemas.workspaces import WorkspaceDetail, WorkspaceSummary
+from app.services.document_processing import process_document
 from app.services.persistence import (
     get_workspace_detail_payload,
     get_workspace_document_payload,
@@ -17,6 +19,17 @@ from app.services.persistence import (
 )
 
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
+
+
+def serialize_document_summary(document, *, status: str | None = None, stage: str | None = None) -> DocumentSummary:
+    return DocumentSummary(
+        id=document.id,
+        filename=document.filename,
+        status=status or document.status,
+        stage=stage or document.parser_stage,
+        created_at=document.created_at.isoformat(),
+        updated_at=document.updated_at.isoformat(),
+    )
 
 
 @router.get("", response_model=list[WorkspaceSummary])
@@ -120,11 +133,8 @@ def requeue_document_analysis(
         }
         return DocumentSummary(**fallback)
 
-    return DocumentSummary(
-        id=document.id,
-        filename=document.filename,
-        status=document.status,
-        stage=document.parser_stage,
-        created_at=document.created_at.isoformat(),
-        updated_at=document.updated_at.isoformat(),
-    )
+    if settings.processing_mode == "inline":
+        result = process_document(db, document.id)
+        return serialize_document_summary(document, status=result["status"], stage=result["stage"])
+
+    return serialize_document_summary(document)

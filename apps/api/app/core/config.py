@@ -4,6 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     app_name: str = "ClauseLens API"
     app_env: str = "development"
+    processing_mode: str = "worker"
     database_url_override: str = ""
     postgres_host: str = "localhost"
     postgres_port: int = 5432

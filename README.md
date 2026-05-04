@@ -56,6 +56,11 @@ The web script includes a `NODE_OPTIONS=--no-experimental-webstorage` runtime fi
 
 By default the API uses a local SQLite database file at `apps/api/clauselens.db` for a zero-setup demo flow. Set `DATABASE_URL_OVERRIDE` in `.env` if you want to point the backend at Postgres instead.
 
+`PROCESSING_MODE` controls how document ingestion runs:
+
+- `worker` (default): uploads are queued and completed by `npm run dev:worker`
+- `inline`: uploads are parsed, embedded, and analyzed inside the API request, which is simpler for single-service deployments
+
 If `OPENAI_API_KEY` is configured, new uploads run through a real OpenAI-backed analysis call using the Responses API plus structured JSON output. If the key is missing or the request fails, ClauseLens falls back to a deterministic local analysis so the demo remains usable offline.
 
 ## Current implemented demo flow
@@ -73,6 +78,45 @@ The current workspace UI now reflects persisted documents, a generated analysis 
 
 Grounded chat answers now pull from persisted document chunks and analysis snapshots, and the assistant returns citation labels that point back to those indexed sources.
 
-Uploads now enter the system in a queued state and are completed by the local worker process. Run `npm run dev:worker` alongside the API and web app to see documents transition through parsing, chunking, analysis, and final readiness.
+Uploads now enter the system in a queued state and are completed by the local worker process when `PROCESSING_MODE=worker`. Run `npm run dev:worker` alongside the API and web app to see documents transition through parsing, chunking, analysis, and final readiness.
+
+When `PROCESSING_MODE=inline`, the same upload endpoint runs parsing, embeddings, and analysis synchronously inside the API. This mode is recommended for simple production deployments where the API and worker do not share a filesystem.
+
+## Production deployment
+
+Recommended production split:
+
+- Frontend: `Vercel`
+- Backend API: `Render`
+- Database: `Render Postgres`
+
+### Render backend settings
+
+Use a single Python web service for the API.
+
+- Root directory: leave empty
+- Build command: `pip install -r apps/api/requirements.txt`
+- Start command: `uvicorn app.main:app --app-dir apps/api --host 0.0.0.0 --port $PORT`
+
+Recommended environment variables:
+
+- `APP_ENV=production`
+- `PROCESSING_MODE=inline`
+- `DATABASE_URL_OVERRIDE=postgresql+psycopg://...`
+- `OPENAI_API_KEY=...`
+- `OPENAI_MODEL=gpt-4o-mini`
+- `OPENAI_EMBEDDING_MODEL=text-embedding-3-small`
+- `UPLOAD_DIR=./uploads`
+- `CORS_ORIGINS=https://your-vercel-domain.vercel.app`
+
+### Vercel frontend settings
+
+- Root directory: `apps/web`
+- Build command: `npm run build`
+- Output: default Next.js output
+
+Recommended environment variables:
+
+- `NEXT_PUBLIC_API_URL=https://your-render-api.onrender.com`
 
 Detailed setup and architecture notes live in [`docs/architecture.md`](./docs/architecture.md).
