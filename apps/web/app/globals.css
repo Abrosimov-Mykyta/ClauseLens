@@ -220,6 +220,28 @@ body {
   font-size: 0.92rem;
 }
 
+.message-body {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.message-paragraph {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.75;
+}
+
+.message-list,
+.message-list-ordered {
+  margin: 0;
+  padding-left: 22px;
+  color: var(--muted);
+  display: grid;
+  gap: 8px;
+  line-height: 1.7;
+}
+
 .error-text {
   color: #a33f2f;
   font-size: 0.95rem;

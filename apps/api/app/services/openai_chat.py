@@ -37,11 +37,18 @@ def build_fallback_chat_answer(
     citations = []
     for context in top_contexts:
         citations.append(context["citation"])
-        bullets.append(f"{context['label']}: {context['content'][:220]}")
+        bullets.append(
+            f"- {context['label']}: {context['content'][:220]} "
+            f"(citation: {context['citation']})"
+        )
 
-    answer = (
-        f"For {workspace_name}, the strongest grounded signals related to '{question}' are: "
-        + " ".join(bullets)
+    answer = "\n\n".join(
+        [
+            f"Workspace: {workspace_name}",
+            f"Question: {question}",
+            "Grounded findings:",
+            "\n".join(bullets),
+        ]
     )
 
     return {
@@ -81,7 +88,10 @@ def answer_with_openai(
         "model": settings.openai_model,
         "instructions": (
             "You are an AI due diligence reviewer. Answer only from the provided workspace "
-            "context. If evidence is limited, say so clearly. Return compact JSON."
+            "context. If evidence is limited, say so clearly. Return compact JSON. "
+            "Inside the answer string, write clean plain text with short sections and bullets. "
+            "Do not use markdown formatting like **bold**, tables, or long single-paragraph blocks. "
+            "Prefer this structure when relevant: Summary, Key risks, Why they matter, Suggested follow-up."
         ),
         "input": [
             {

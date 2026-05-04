@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { Fragment, type ReactNode, useState, useTransition } from "react";
 
 import {
   askWorkspaceQuestion,
@@ -12,6 +12,51 @@ type ChatConsoleProps = {
   workspaceId: string;
   initialMessages: ChatHistoryMessage[];
 };
+
+function renderMessageContent(content: string): ReactNode {
+  const sanitized = content.replace(/\*\*/g, "").trim();
+  const blocks = sanitized.split(/\n\s*\n/).filter(Boolean);
+
+  return blocks.map((block, blockIndex) => {
+    const lines = block.split("\n").map((line) => line.trim()).filter(Boolean);
+    const numberedLines = lines.filter((line) => /^\d+\.\s+/.test(line));
+    const bulletedLines = lines.filter((line) => /^-\s+/.test(line));
+
+    if (numberedLines.length === lines.length && lines.length > 0) {
+      return (
+        <ol key={`ordered-${blockIndex}`} className="message-list message-list-ordered">
+          {lines.map((line, index) => (
+            <li key={`ordered-item-${blockIndex}-${index}`}>
+              {line.replace(/^\d+\.\s+/, "")}
+            </li>
+          ))}
+        </ol>
+      );
+    }
+
+    if (bulletedLines.length === lines.length && lines.length > 0) {
+      return (
+        <ul key={`bulleted-${blockIndex}`} className="message-list">
+          {lines.map((line, index) => (
+            <li key={`bulleted-item-${blockIndex}-${index}`}>
+              {line.replace(/^-\s+/, "")}
+            </li>
+          ))}
+        </ul>
+      );
+    }
+
+    return (
+      <Fragment key={`paragraph-${blockIndex}`}>
+        {lines.map((line, index) => (
+          <p key={`paragraph-line-${blockIndex}-${index}`} className="message-paragraph">
+            {line}
+          </p>
+        ))}
+      </Fragment>
+    );
+  });
+}
 
 export function ChatConsole({ workspaceId, initialMessages }: ChatConsoleProps) {
   const [messages, setMessages] = useState<ChatHistoryMessage[]>(initialMessages);
@@ -26,7 +71,7 @@ export function ChatConsole({ workspaceId, initialMessages }: ChatConsoleProps) 
         {messages.map((message, index) => (
           <article key={`${message.role}-${index}`} className="list-item">
             <strong>{message.role === "user" ? "Reviewer" : "ClauseLens AI"}</strong>
-            <p className="lede">{message.content}</p>
+            <div className="message-body">{renderMessageContent(message.content)}</div>
             {message.citations?.length ? (
               <p className="helper-text">Citations: {message.citations.join(" • ")}</p>
             ) : null}
