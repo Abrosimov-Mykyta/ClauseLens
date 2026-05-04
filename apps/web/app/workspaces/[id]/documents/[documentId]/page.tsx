@@ -53,6 +53,24 @@ export default async function DocumentDetailPage({ params }: DocumentDetailPageP
 
       <section className="workspace-grid" style={{ marginTop: 24 }}>
         <article className="workspace-card">
+          <h3>Retrieval diagnostics</h3>
+          <ul className="list">
+            <li className="list-item">
+              <strong>{document.retrieval_metrics.chunk_count}</strong>
+              <p className="helper-text">Chunks available for retrieval</p>
+            </li>
+            <li className="list-item">
+              <strong>{document.retrieval_metrics.embedded_chunk_count}</strong>
+              <p className="helper-text">Chunks with embeddings</p>
+            </li>
+            <li className="list-item">
+              <strong>{document.retrieval_metrics.latest_citation_count}</strong>
+              <p className="helper-text">Citations on the latest assistant answer</p>
+            </li>
+          </ul>
+        </article>
+
+        <article className="workspace-card">
           <h3>Latest analysis</h3>
           {document.analysis_snapshot ? (
             <ul className="list">
@@ -105,6 +123,9 @@ export default async function DocumentDetailPage({ params }: DocumentDetailPageP
                   <strong>{chunk.citation_label}</strong>
                   <span className="status-pill status-pill-neutral">
                     {chunk.token_count ? `${chunk.token_count} tokens` : "token count pending"}
+                  </span>
+                  <span className="status-pill status-pill-neutral">
+                    {chunk.has_embedding ? "embedding ready" : "no embedding"}
                   </span>
                 </div>
                 <p className="lede">{chunk.content}</p>

@@ -31,6 +31,28 @@ export default async function WorkspaceDetailPage({ params }: WorkspacePageProps
 
       <section className="workspace-grid" style={{ marginTop: 24 }}>
         <article className="workspace-card">
+          <h3>Retrieval metrics</h3>
+          <ul className="list">
+            <li className="list-item">
+              <strong>{workspace.retrieval_metrics.indexed_documents}</strong>
+              <p className="helper-text">Indexed documents</p>
+            </li>
+            <li className="list-item">
+              <strong>{workspace.retrieval_metrics.indexed_chunks}</strong>
+              <p className="helper-text">Indexed chunks</p>
+            </li>
+            <li className="list-item">
+              <strong>{workspace.retrieval_metrics.embedded_chunks}</strong>
+              <p className="helper-text">Embedded chunks</p>
+            </li>
+            <li className="list-item">
+              <strong>{workspace.retrieval_metrics.analysis_runs}</strong>
+              <p className="helper-text">Analysis runs</p>
+            </li>
+          </ul>
+        </article>
+
+        <article className="workspace-card">
           <h3>Document pipeline</h3>
           <ul className="list">
             <li className="list-item">1. Upload file and persist metadata</li>

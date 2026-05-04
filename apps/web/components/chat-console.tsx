@@ -2,7 +2,11 @@
 
 import { useState, useTransition } from "react";
 
-import { askWorkspaceQuestion, type ChatHistoryMessage } from "../lib/api";
+import {
+  askWorkspaceQuestion,
+  type ChatEvidenceItem,
+  type ChatHistoryMessage,
+} from "../lib/api";
 
 type ChatConsoleProps = {
   workspaceId: string;
@@ -11,6 +15,7 @@ type ChatConsoleProps = {
 
 export function ChatConsole({ workspaceId, initialMessages }: ChatConsoleProps) {
   const [messages, setMessages] = useState<ChatHistoryMessage[]>(initialMessages);
+  const [latestEvidence, setLatestEvidence] = useState<ChatEvidenceItem[]>([]);
   const [question, setQuestion] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -63,6 +68,7 @@ export function ChatConsole({ workspaceId, initialMessages }: ChatConsoleProps) 
               startTransition(async () => {
                 try {
                   const response = await askWorkspaceQuestion(workspaceId, trimmed);
+                  setLatestEvidence(response.evidence);
                   setMessages((current) => [
                     ...current,
                     {
@@ -84,6 +90,22 @@ export function ChatConsole({ workspaceId, initialMessages }: ChatConsoleProps) 
         </div>
         {error ? <p className="error-text">{error}</p> : null}
       </div>
+
+      {latestEvidence.length ? (
+        <section className="panel" style={{ marginTop: 24 }}>
+          <div className="eyebrow">Retrieval preview</div>
+          <h3>Evidence used for the latest answer</h3>
+          <ul className="list">
+            {latestEvidence.map((item, index) => (
+              <li key={`${item.citation}-${index}`} className="list-item">
+                <strong>{item.label}</strong>
+                <p className="helper-text">{item.citation}</p>
+                <p className="lede">{item.content_preview}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </section>
   );
 }

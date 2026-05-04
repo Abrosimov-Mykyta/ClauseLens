@@ -21,9 +21,17 @@ class DocumentChunkExcerpt(BaseModel):
     citation_label: str
     content: str
     token_count: int | None
+    has_embedding: bool
+
+
+class DocumentRetrievalMetrics(BaseModel):
+    chunk_count: int
+    embedded_chunk_count: int
+    latest_citation_count: int
 
 
 class DocumentDetail(DocumentSummary):
     mime_type: str | None
     analysis_snapshot: AnalysisSnapshot | None
     chunks: list[DocumentChunkExcerpt]
+    retrieval_metrics: DocumentRetrievalMetrics

@@ -39,6 +39,12 @@ def get_workspace_detail(workspace_id: str, db: Session = Depends(get_db)) -> Wo
             "recent_activity": [],
             "documents_list": [],
             "latest_analysis": None,
+            "retrieval_metrics": {
+                "indexed_documents": 0,
+                "indexed_chunks": 0,
+                "embedded_chunks": 0,
+                "analysis_runs": 0,
+            },
         }
         return WorkspaceDetail(**fallback)
     return WorkspaceDetail(**workspace)
@@ -78,6 +84,11 @@ def get_workspace_document(
             "mime_type": None,
             "analysis_snapshot": None,
             "chunks": [],
+            "retrieval_metrics": {
+                "chunk_count": 0,
+                "embedded_chunk_count": 0,
+                "latest_citation_count": 0,
+            },
         }
         return DocumentDetail(**fallback)
     return DocumentDetail(**payload)

@@ -16,6 +16,7 @@ export type WorkspaceDetail = WorkspaceSummary & {
   recent_activity: string[];
   documents_list: DocumentSummary[];
   latest_analysis: AnalysisSnapshot | null;
+  retrieval_metrics: RetrievalMetrics;
 };
 
 export type AuditEvent = {
@@ -43,17 +44,26 @@ export type DocumentChunkExcerpt = {
   citation_label: string;
   content: string;
   token_count: number | null;
+  has_embedding: boolean;
 };
 
 export type DocumentDetail = DocumentSummary & {
   mime_type: string | null;
   analysis_snapshot: AnalysisSnapshot | null;
   chunks: DocumentChunkExcerpt[];
+  retrieval_metrics: DocumentRetrievalMetrics;
 };
 
 export type ChatAnswer = {
   answer: string;
   citations: string[];
+  evidence: ChatEvidenceItem[];
+};
+
+export type ChatEvidenceItem = {
+  citation: string;
+  label: string;
+  content_preview: string;
 };
 
 export type ChatHistoryMessage = {
@@ -72,6 +82,19 @@ export type AnalysisSnapshot = {
   obligations: string;
   follow_up_questions: string;
   created_at: string;
+};
+
+export type RetrievalMetrics = {
+  indexed_documents: number;
+  indexed_chunks: number;
+  embedded_chunks: number;
+  analysis_runs: number;
+};
+
+export type DocumentRetrievalMetrics = {
+  chunk_count: number;
+  embedded_chunk_count: number;
+  latest_citation_count: number;
 };
 
 async function fetchJson<T>(path: string): Promise<T> {
@@ -101,6 +124,12 @@ function normalizeWorkspaceDetail(
     recent_activity: payload.recent_activity ?? [],
     documents_list: payload.documents_list ?? [],
     latest_analysis: payload.latest_analysis ?? null,
+    retrieval_metrics: payload.retrieval_metrics ?? {
+      indexed_documents: 0,
+      indexed_chunks: 0,
+      embedded_chunks: 0,
+      analysis_runs: 0,
+    },
   };
 }
 

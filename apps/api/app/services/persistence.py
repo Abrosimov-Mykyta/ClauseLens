@@ -52,6 +52,32 @@ def serialize_analysis_snapshot(analysis: AnalysisRun | None) -> dict | None:
     }
 
 
+def build_workspace_retrieval_metrics(session: Session, workspace_id: str) -> dict[str, int]:
+    indexed_documents = session.scalar(
+        select(func.count(Document.id)).where(Document.workspace_id == workspace_id)
+    ) or 0
+    indexed_chunks = session.scalar(
+        select(func.count(DocumentChunk.id))
+        .join(Document, Document.id == DocumentChunk.document_id)
+        .where(Document.workspace_id == workspace_id)
+    ) or 0
+    embedded_chunks = session.scalar(
+        select(func.count(DocumentChunk.id))
+        .join(Document, Document.id == DocumentChunk.document_id)
+        .where(Document.workspace_id == workspace_id, DocumentChunk.embedding_json.is_not(None))
+    ) or 0
+    analysis_runs = session.scalar(
+        select(func.count(AnalysisRun.id)).where(AnalysisRun.workspace_id == workspace_id)
+    ) or 0
+
+    return {
+        "indexed_documents": indexed_documents,
+        "indexed_chunks": indexed_chunks,
+        "embedded_chunks": embedded_chunks,
+        "analysis_runs": analysis_runs,
+    }
+
+
 def list_workspace_summaries(session: Session) -> list[dict]:
     workspaces = session.scalars(select(Workspace).order_by(Workspace.created_at.asc())).all()
     return [serialize_workspace_summary(session, workspace) for workspace in workspaces]
@@ -106,6 +132,7 @@ def get_workspace_detail_payload(session: Session, workspace_slug: str) -> dict 
             for document in documents
         ],
         "latest_analysis": serialize_analysis_snapshot(latest_analysis),
+        "retrieval_metrics": build_workspace_retrieval_metrics(session, workspace.id),
     }
 
 
@@ -184,6 +211,22 @@ def get_workspace_document_payload(
         .where(DocumentChunk.document_id == document.id)
         .order_by(DocumentChunk.chunk_index.asc())
     ).all()
+    latest_chat_with_citations = session.scalar(
+        select(ChatMessage)
+        .join(ChatSession, ChatSession.id == ChatMessage.session_id)
+        .where(
+            ChatSession.workspace_id == workspace.id,
+            ChatMessage.role == "assistant",
+            ChatMessage.citations.is_not(None),
+        )
+        .order_by(ChatMessage.created_at.desc())
+        .limit(1)
+    )
+    latest_citation_count = (
+        len([part for part in latest_chat_with_citations.citations.split("|") if part])
+        if latest_chat_with_citations and latest_chat_with_citations.citations
+        else 0
+    )
 
     return {
         "id": document.id,
@@ -202,9 +245,15 @@ def get_workspace_document_payload(
                 or f"{document.filename}#chunk-{chunk.chunk_index + 1}",
                 "content": chunk.content,
                 "token_count": chunk.token_count,
+                "has_embedding": bool(chunk.embedding_json),
             }
             for chunk in chunks
         ],
+        "retrieval_metrics": {
+            "chunk_count": len(chunks),
+            "embedded_chunk_count": sum(1 for chunk in chunks if chunk.embedding_json),
+            "latest_citation_count": latest_citation_count,
+        },
     }
 
 
@@ -567,6 +616,15 @@ def create_chat_exchange(session: Session, workspace_slug: str, question: str) -
     response = answer_with_openai(question, workspace.name, contexts)
     citations = [str(citation) for citation in response.get("citations", [])]
     answer = str(response.get("answer", ""))
+    evidence = [
+        {
+            "citation": str(context["citation"]),
+            "label": str(context["label"]),
+            "content_preview": str(context["content"])[:240],
+        }
+        for context in contexts
+        if str(context["citation"]) in citations
+    ]
     assistant_message = ChatMessage(
         session_id=chat_session.id,
         role="assistant",
@@ -588,4 +646,5 @@ def create_chat_exchange(session: Session, workspace_slug: str, question: str) -
     return {
         "answer": answer,
         "citations": citations,
+        "evidence": evidence,
     }
