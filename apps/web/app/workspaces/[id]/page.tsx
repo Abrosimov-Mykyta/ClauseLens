@@ -70,8 +70,8 @@ export default async function WorkspaceDetailPage({ params }: WorkspacePageProps
         <article className="workspace-card">
           <h3>Recent activity</h3>
           <ul className="list">
-            {workspace.recent_activity.map((item) => (
-              <li key={item} className="list-item">
+            {workspace.recent_activity.map((item, index) => (
+              <li key={`${item}-${index}`} className="list-item">
                 {item}
               </li>
             ))}
