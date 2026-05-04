@@ -1,4 +1,6 @@
 import re
+import json
+import math
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -16,6 +18,7 @@ from app.models import (
     WorkspaceMember,
 )
 from app.services.openai_chat import answer_with_openai
+from app.services.openai_embeddings import embed_text
 
 
 def serialize_workspace_summary(session: Session, workspace: Workspace) -> dict:
@@ -268,9 +271,43 @@ def _tokenize_query(text: str) -> set[str]:
     return {token for token in re.findall(r"[a-zA-Z]{3,}", text.lower())}
 
 
-def _build_chat_context(session: Session, workspace: Workspace, question: str) -> list[dict[str, str]]:
+def _parse_embedding(raw_embedding: str | None) -> list[float]:
+    if not raw_embedding:
+        return []
+
+    try:
+        parsed = json.loads(raw_embedding)
+    except json.JSONDecodeError:
+        return []
+
+    if not isinstance(parsed, list):
+        return []
+
+    return [float(component) for component in parsed]
+
+
+def _cosine_similarity(left: list[float], right: list[float]) -> float:
+    if not left or not right or len(left) != len(right):
+        return 0.0
+
+    numerator = sum(left_component * right_component for left_component, right_component in zip(left, right))
+    left_magnitude = math.sqrt(sum(component * component for component in left))
+    right_magnitude = math.sqrt(sum(component * component for component in right))
+    if left_magnitude == 0 or right_magnitude == 0:
+        return 0.0
+
+    return numerator / (left_magnitude * right_magnitude)
+
+
+def _build_chat_context(
+    session: Session,
+    workspace: Workspace,
+    question: str,
+) -> list[dict[str, str | float]]:
     query_tokens = _tokenize_query(question)
-    contexts: list[dict[str, str]] = []
+    query_embedding = embed_text(question)
+    contexts: list[dict[str, str | float]] = []
+    seen_signatures: set[tuple[str, str, str]] = set()
 
     chunk_rows = session.execute(
         select(DocumentChunk, Document)
@@ -283,13 +320,18 @@ def _build_chat_context(session: Session, workspace: Workspace, question: str) -
         chunk, document = row
         content_lower = chunk.content.lower()
         overlap_score = sum(1 for token in query_tokens if token in content_lower)
+        semantic_score = _cosine_similarity(query_embedding, _parse_embedding(chunk.embedding_json))
+        signature = ("document_chunk", document.filename, chunk.content)
+        if signature in seen_signatures:
+            continue
+        seen_signatures.add(signature)
         contexts.append(
             {
                 "type": "document_chunk",
                 "label": document.filename,
                 "citation": chunk.citation_label or f"{document.filename}#chunk-{chunk.chunk_index + 1}",
                 "content": chunk.content,
-                "score": overlap_score + 3,
+                "score": (semantic_score * 10) + (overlap_score * 1.5) + 3,
             }
         )
 
@@ -310,6 +352,10 @@ def _build_chat_context(session: Session, workspace: Workspace, question: str) -
             ]
             for section_name, content, base_score in analysis_sections:
                 overlap_score = sum(1 for token in query_tokens if token in content.lower())
+                signature = ("analysis", section_name, content)
+                if signature in seen_signatures:
+                    continue
+                seen_signatures.add(signature)
                 contexts.append(
                     {
                         "type": "analysis",
@@ -409,6 +455,7 @@ def complete_document_processing(
     document_id: str,
     *,
     chunks: list[str],
+    chunk_embeddings: list[list[float]],
     analysis_payload: dict[str, str],
 ) -> Document:
     document = get_document_by_id(session, document_id)
@@ -422,6 +469,7 @@ def complete_document_processing(
     session.query(DocumentChunk).filter(DocumentChunk.document_id == document.id).delete()
 
     for index, chunk_text in enumerate(chunks):
+        embedding = chunk_embeddings[index] if index < len(chunk_embeddings) else []
         session.add(
             DocumentChunk(
                 document_id=document.id,
@@ -429,6 +477,7 @@ def complete_document_processing(
                 content=chunk_text,
                 token_count=len(chunk_text.split()),
                 citation_label=f"{document.filename}#chunk-{index + 1}",
+                embedding_json=json.dumps(embedding),
             )
         )
 

@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.services.chunker import chunk_document_text
 from app.services.document_parser import extract_document_text
 from app.services.openai_analysis import analyze_with_openai
+from app.services.openai_embeddings import embed_texts
 from app.services.persistence import (
     complete_document_processing,
     fail_document_processing,
@@ -28,6 +29,7 @@ def process_document(session: Session, document_id: str) -> dict[str, str]:
         chunks = chunk_document_text(document_text)
         if not chunks and document_text.strip():
             chunks = [document_text.strip()]
+        chunk_embeddings = embed_texts(chunks)
 
         mark_document_stage(session, document_id, status="processing", parser_stage="analyzing")
         analysis_payload = analyze_with_openai(document.filename, document_text)
@@ -36,6 +38,7 @@ def process_document(session: Session, document_id: str) -> dict[str, str]:
             session,
             document_id,
             chunks=chunks,
+            chunk_embeddings=chunk_embeddings,
             analysis_payload=analysis_payload,
         )
 

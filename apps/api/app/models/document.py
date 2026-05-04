@@ -37,9 +37,9 @@ class DocumentChunk(Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     token_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     citation_label: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    embedding_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     document: Mapped["Document"] = relationship(back_populates="chunks")
 
 
 from app.models.workspace import Workspace  # noqa: E402
-

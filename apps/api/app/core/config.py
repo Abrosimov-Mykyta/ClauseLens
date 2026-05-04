@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
     openai_base_url: str = "https://api.openai.com/v1/responses"
+    openai_embedding_model: str = "text-embedding-3-small"
+    openai_embeddings_url: str = "https://api.openai.com/v1/embeddings"
     worker_poll_interval_seconds: float = 2.0
     upload_dir: str = "./uploads"
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
