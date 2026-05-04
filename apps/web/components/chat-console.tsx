@@ -1,16 +1,21 @@
 "use client";
 
+import Link from "next/link";
 import { Fragment, type ReactNode, useState, useTransition } from "react";
 
 import {
   askWorkspaceQuestion,
+  buildCitationAnchor,
+  resolveCitationDocument,
   type ChatEvidenceItem,
+  type DocumentSummary,
   type ChatHistoryMessage,
 } from "../lib/api";
 
 type ChatConsoleProps = {
   workspaceId: string;
   initialMessages: ChatHistoryMessage[];
+  documents: DocumentSummary[];
 };
 
 function renderMessageContent(content: string): ReactNode {
@@ -58,7 +63,7 @@ function renderMessageContent(content: string): ReactNode {
   });
 }
 
-export function ChatConsole({ workspaceId, initialMessages }: ChatConsoleProps) {
+export function ChatConsole({ workspaceId, initialMessages, documents }: ChatConsoleProps) {
   const [messages, setMessages] = useState<ChatHistoryMessage[]>(initialMessages);
   const [latestEvidence, setLatestEvidence] = useState<ChatEvidenceItem[]>([]);
   const [question, setQuestion] = useState("");
@@ -73,7 +78,31 @@ export function ChatConsole({ workspaceId, initialMessages }: ChatConsoleProps) 
             <strong>{message.role === "user" ? "Reviewer" : "ClauseLens AI"}</strong>
             <div className="message-body">{renderMessageContent(message.content)}</div>
             {message.citations?.length ? (
-              <p className="helper-text">Citations: {message.citations.join(" • ")}</p>
+              <div className="helper-text citation-row">
+                <span>Citations:</span>
+                <div className="citation-links">
+                  {message.citations.map((citation, citationIndex) => {
+                    const document = resolveCitationDocument(citation, documents);
+                    if (!document) {
+                      return (
+                        <span key={`${citation}-${citationIndex}`} className="citation-chip">
+                          {citation}
+                        </span>
+                      );
+                    }
+
+                    return (
+                      <Link
+                        key={`${citation}-${citationIndex}`}
+                        href={`/workspaces/${workspaceId}/documents/${document.id}#${buildCitationAnchor(citation)}`}
+                        className="citation-chip citation-chip-link"
+                      >
+                        {citation}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
             ) : null}
           </article>
         ))}

@@ -242,6 +242,36 @@ body {
   line-height: 1.7;
 }
 
+.citation-row {
+  display: grid;
+  gap: 8px;
+}
+
+.citation-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.citation-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: rgba(24, 34, 45, 0.08);
+  color: var(--foreground);
+}
+
+.citation-chip-link {
+  border: 1px solid rgba(201, 109, 66, 0.28);
+  background: rgba(201, 109, 66, 0.1);
+  color: #7f3d22;
+}
+
+.citation-target {
+  scroll-margin-top: 110px;
+}
+
 .error-text {
   color: #a33f2f;
   font-size: 0.95rem;

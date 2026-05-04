@@ -1,6 +1,6 @@
 import { ChatConsole } from "../../../../components/chat-console";
 import { Topbar } from "../../../../components/topbar";
-import { getWorkspaceChatHistory } from "../../../../lib/api";
+import { getWorkspaceChatHistory, getWorkspaceDocuments } from "../../../../lib/api";
 
 type ChatPageProps = {
   params: Promise<{ id: string }>;
@@ -9,6 +9,7 @@ type ChatPageProps = {
 export default async function WorkspaceChatPage({ params }: ChatPageProps) {
   const { id } = await params;
   const history = await getWorkspaceChatHistory(id);
+  const documents = await getWorkspaceDocuments(id);
   const initialMessages =
     history.length > 0
       ? history
@@ -42,7 +43,7 @@ export default async function WorkspaceChatPage({ params }: ChatPageProps) {
         </p>
       </section>
 
-      <ChatConsole workspaceId={id} initialMessages={initialMessages} />
+      <ChatConsole workspaceId={id} initialMessages={initialMessages} documents={documents} />
     </main>
   );
 }

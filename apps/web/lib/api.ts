@@ -97,6 +97,22 @@ export type DocumentRetrievalMetrics = {
   latest_citation_count: number;
 };
 
+export function buildCitationAnchor(citation: string): string {
+  return `citation-${encodeURIComponent(citation)}`;
+}
+
+export function resolveCitationDocument(
+  citation: string,
+  documents: DocumentSummary[],
+): DocumentSummary | null {
+  const [filename] = citation.split("#");
+  if (!filename || citation.startsWith("analysis:")) {
+    return null;
+  }
+
+  return documents.find((document) => document.filename === filename) ?? null;
+}
+
 async function fetchJson<T>(path: string): Promise<T> {
   const response = await fetch(`${apiBaseUrl}${path}`, {
     cache: "no-store",

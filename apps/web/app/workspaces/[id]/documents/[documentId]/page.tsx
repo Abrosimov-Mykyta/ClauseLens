@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { DocumentActions } from "../../../../../components/document-actions";
 import { Topbar } from "../../../../../components/topbar";
-import { getWorkspaceDocument } from "../../../../../lib/api";
+import { buildCitationAnchor, getWorkspaceDocument } from "../../../../../lib/api";
 
 type DocumentDetailPageProps = {
   params: Promise<{ id: string; documentId: string }>;
@@ -118,7 +118,11 @@ export default async function DocumentDetailPage({ params }: DocumentDetailPageP
         {document.chunks.length ? (
           <ul className="list">
             {document.chunks.map((chunk) => (
-              <li key={chunk.id} className="list-item">
+              <li
+                key={chunk.id}
+                id={buildCitationAnchor(chunk.citation_label)}
+                className="list-item citation-target"
+              >
                 <div className="status-row">
                   <strong>{chunk.citation_label}</strong>
                   <span className="status-pill status-pill-neutral">
