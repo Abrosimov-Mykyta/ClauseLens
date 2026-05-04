@@ -9,10 +9,10 @@ type WorkspacePageProps = {
 };
 
 export default async function WorkspaceDetailPage({ params }: WorkspacePageProps) {
-  await requireViewerSession();
+  const viewer = await requireViewerSession();
   const { id } = await params;
-  const workspace = await getWorkspace(id);
-  const auditEvents = await getAuditEvents(id);
+  const workspace = await getWorkspace(id, viewer.accessToken);
+  const auditEvents = await getAuditEvents(id, viewer.accessToken);
 
   return (
     <main className="page-shell">

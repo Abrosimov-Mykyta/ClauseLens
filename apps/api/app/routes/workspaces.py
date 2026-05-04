@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.db import get_db
+from app.dependencies.auth import CurrentViewer, get_current_viewer
 from app.schemas.audit import AuditEvent
 from app.schemas.chat import ChatHistoryMessage
 from app.schemas.documents import DocumentDetail, DocumentSummary
@@ -36,22 +37,30 @@ def serialize_document_summary(document, *, status: str | None = None, stage: st
 
 
 @router.get("", response_model=list[WorkspaceSummary])
-def get_workspaces(db: Session = Depends(get_db)) -> list[WorkspaceSummary]:
-    return [WorkspaceSummary(**item) for item in list_workspace_summaries(db)]
+def get_workspaces(
+    db: Session = Depends(get_db),
+    viewer: CurrentViewer = Depends(get_current_viewer),
+) -> list[WorkspaceSummary]:
+    return [WorkspaceSummary(**item) for item in list_workspace_summaries(db, actor=viewer.user)]
 
 
 @router.post("", response_model=WorkspaceSummary)
 def create_workspace_endpoint(
     payload: WorkspaceCreateRequest,
     db: Session = Depends(get_db),
+    viewer: CurrentViewer = Depends(get_current_viewer),
 ) -> WorkspaceSummary:
-    workspace = create_workspace(db, name=payload.name, description=payload.description)
+    workspace = create_workspace(db, actor=viewer.user, name=payload.name, description=payload.description)
     return WorkspaceSummary(**serialize_workspace_summary(db, workspace))
 
 
 @router.get("/{workspace_id}", response_model=WorkspaceDetail)
-def get_workspace_detail(workspace_id: str, db: Session = Depends(get_db)) -> WorkspaceDetail:
-    workspace = get_workspace_detail_payload(db, workspace_id)
+def get_workspace_detail(
+    workspace_id: str,
+    db: Session = Depends(get_db),
+    viewer: CurrentViewer = Depends(get_current_viewer),
+) -> WorkspaceDetail:
+    workspace = get_workspace_detail_payload(db, workspace_id, actor=viewer.user)
     if workspace is None:
         fallback = {
             "id": workspace_id,
@@ -79,16 +88,18 @@ def get_workspace_detail(workspace_id: str, db: Session = Depends(get_db)) -> Wo
 def get_workspace_audit(
     workspace_id: str,
     db: Session = Depends(get_db),
+    viewer: CurrentViewer = Depends(get_current_viewer),
 ) -> list[AuditEvent]:
-    return [AuditEvent(**item) for item in list_workspace_audit_events(db, workspace_id)]
+    return [AuditEvent(**item) for item in list_workspace_audit_events(db, workspace_id, actor=viewer.user)]
 
 
 @router.get("/{workspace_id}/documents", response_model=list[DocumentSummary])
 def get_workspace_documents(
     workspace_id: str,
     db: Session = Depends(get_db),
+    viewer: CurrentViewer = Depends(get_current_viewer),
 ) -> list[DocumentSummary]:
-    return [DocumentSummary(**item) for item in list_workspace_documents(db, workspace_id)]
+    return [DocumentSummary(**item) for item in list_workspace_documents(db, workspace_id, actor=viewer.user)]
 
 
 @router.get("/{workspace_id}/documents/{document_id}", response_model=DocumentDetail)
@@ -96,8 +107,9 @@ def get_workspace_document(
     workspace_id: str,
     document_id: str,
     db: Session = Depends(get_db),
+    viewer: CurrentViewer = Depends(get_current_viewer),
 ) -> DocumentDetail:
-    payload = get_workspace_document_payload(db, workspace_id, document_id)
+    payload = get_workspace_document_payload(db, workspace_id, document_id, actor=viewer.user)
     if payload is None:
         fallback = {
             "id": document_id,
@@ -123,8 +135,9 @@ def get_workspace_document(
 def get_workspace_chat_history(
     workspace_id: str,
     db: Session = Depends(get_db),
+    viewer: CurrentViewer = Depends(get_current_viewer),
 ) -> list[ChatHistoryMessage]:
-    return [ChatHistoryMessage(**item) for item in list_workspace_chat_history(db, workspace_id)]
+    return [ChatHistoryMessage(**item) for item in list_workspace_chat_history(db, workspace_id, actor=viewer.user)]
 
 
 @router.post("/{workspace_id}/documents/{document_id}/requeue", response_model=DocumentSummary)
@@ -132,8 +145,9 @@ def requeue_document_analysis(
     workspace_id: str,
     document_id: str,
     db: Session = Depends(get_db),
+    viewer: CurrentViewer = Depends(get_current_viewer),
 ) -> DocumentSummary:
-    document = requeue_workspace_document(db, workspace_id, document_id)
+    document = requeue_workspace_document(db, workspace_id, document_id, actor=viewer.user)
     if document is None:
         fallback = {
             "id": document_id,

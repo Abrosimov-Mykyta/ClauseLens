@@ -8,10 +8,10 @@ type ChatPageProps = {
 };
 
 export default async function WorkspaceChatPage({ params }: ChatPageProps) {
-  await requireViewerSession();
+  const viewer = await requireViewerSession();
   const { id } = await params;
-  const history = await getWorkspaceChatHistory(id);
-  const documents = await getWorkspaceDocuments(id);
+  const history = await getWorkspaceChatHistory(id, viewer.accessToken);
+  const documents = await getWorkspaceDocuments(id, viewer.accessToken);
   const initialMessages =
     history.length > 0
       ? history

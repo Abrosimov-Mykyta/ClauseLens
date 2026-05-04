@@ -1,4 +1,5 @@
 import { workspaces as demoWorkspaces } from "./demo-data";
+import { VIEWER_COOKIE_NAME } from "./viewer-session-shared";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -118,9 +119,48 @@ export function resolveCitationDocument(
   return documents.find((document) => document.filename === filename) ?? null;
 }
 
-async function fetchJson<T>(path: string): Promise<T> {
+function getBrowserAccessToken(): string | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  const encodedCookieName = `${VIEWER_COOKIE_NAME}=`;
+  const rawCookie = document.cookie
+    .split("; ")
+    .find((entry) => entry.startsWith(encodedCookieName))
+    ?.slice(encodedCookieName.length);
+
+  if (!rawCookie) {
+    return null;
+  }
+
+  try {
+    const session = JSON.parse(decodeURIComponent(rawCookie)) as { accessToken?: string };
+    return session.accessToken ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function buildAuthHeaders(
+  authToken?: string,
+  headers?: HeadersInit,
+): HeadersInit | undefined {
+  const resolvedToken = authToken ?? getBrowserAccessToken();
+  if (!resolvedToken) {
+    return headers;
+  }
+
+  return {
+    ...(headers ?? {}),
+    Authorization: `Bearer ${resolvedToken}`,
+  };
+}
+
+async function fetchJson<T>(path: string, authToken?: string): Promise<T> {
   const response = await fetch(`${apiBaseUrl}${path}`, {
     cache: "no-store",
+    headers: buildAuthHeaders(authToken),
   });
 
   if (!response.ok) {
@@ -154,11 +194,11 @@ function normalizeWorkspaceDetail(
   };
 }
 
-export async function getWorkspaces(): Promise<WorkspaceSummary[]> {
+export async function getWorkspaces(authToken?: string): Promise<WorkspaceSummary[]> {
   try {
-    return await fetchJson<WorkspaceSummary[]>("/api/workspaces");
+    return await fetchJson<WorkspaceSummary[]>("/api/workspaces", authToken);
   } catch {
-    return demoWorkspaces;
+    return authToken ? [] : demoWorkspaces;
   }
 }
 
@@ -167,6 +207,7 @@ export async function createWorkspace(input: WorkspaceCreateInput): Promise<Work
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...buildAuthHeaders(),
     },
     body: JSON.stringify(input),
   });
@@ -178,11 +219,14 @@ export async function createWorkspace(input: WorkspaceCreateInput): Promise<Work
   return (await response.json()) as WorkspaceSummary;
 }
 
-export async function getWorkspace(workspaceId: string): Promise<WorkspaceDetail> {
+export async function getWorkspace(workspaceId: string, authToken?: string): Promise<WorkspaceDetail> {
   try {
-    const payload = await fetchJson<Partial<WorkspaceDetail>>(`/api/workspaces/${workspaceId}`);
+    const payload = await fetchJson<Partial<WorkspaceDetail>>(`/api/workspaces/${workspaceId}`, authToken);
     return normalizeWorkspaceDetail(workspaceId, payload);
   } catch {
+    if (authToken) {
+      throw new Error(`Workspace ${workspaceId} is unavailable`);
+    }
     const fallback = demoWorkspaces.find((workspace) => workspace.id === workspaceId);
     return normalizeWorkspaceDetail(workspaceId, {
       id: workspaceId,
@@ -200,10 +244,13 @@ export async function getWorkspace(workspaceId: string): Promise<WorkspaceDetail
   }
 }
 
-export async function getAuditEvents(workspaceId: string): Promise<AuditEvent[]> {
+export async function getAuditEvents(workspaceId: string, authToken?: string): Promise<AuditEvent[]> {
   try {
-    return await fetchJson<AuditEvent[]>(`/api/workspaces/${workspaceId}/audit`);
+    return await fetchJson<AuditEvent[]>(`/api/workspaces/${workspaceId}/audit`, authToken);
   } catch {
+    if (authToken) {
+      return [];
+    }
     return [
       {
         id: `${workspaceId}-audit-1`,
@@ -225,6 +272,7 @@ export async function uploadDocument(
 
   const response = await fetch(`${apiBaseUrl}/api/documents/upload`, {
     method: "POST",
+    headers: buildAuthHeaders(),
     body: formData,
   });
 
@@ -243,6 +291,7 @@ export async function askWorkspaceQuestion(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...buildAuthHeaders(),
     },
     body: JSON.stringify({ question }),
   });
@@ -254,9 +303,12 @@ export async function askWorkspaceQuestion(
   return (await response.json()) as ChatAnswer;
 }
 
-export async function getWorkspaceDocuments(workspaceId: string): Promise<DocumentSummary[]> {
+export async function getWorkspaceDocuments(
+  workspaceId: string,
+  authToken?: string,
+): Promise<DocumentSummary[]> {
   try {
-    return await fetchJson<DocumentSummary[]>(`/api/workspaces/${workspaceId}/documents`);
+    return await fetchJson<DocumentSummary[]>(`/api/workspaces/${workspaceId}/documents`, authToken);
   } catch {
     return [];
   }
@@ -265,8 +317,9 @@ export async function getWorkspaceDocuments(workspaceId: string): Promise<Docume
 export async function getWorkspaceDocument(
   workspaceId: string,
   documentId: string,
+  authToken?: string,
 ): Promise<DocumentDetail> {
-  return await fetchJson<DocumentDetail>(`/api/workspaces/${workspaceId}/documents/${documentId}`);
+  return await fetchJson<DocumentDetail>(`/api/workspaces/${workspaceId}/documents/${documentId}`, authToken);
 }
 
 export async function requeueWorkspaceDocument(
@@ -277,6 +330,7 @@ export async function requeueWorkspaceDocument(
     `${apiBaseUrl}/api/workspaces/${workspaceId}/documents/${documentId}/requeue`,
     {
       method: "POST",
+      headers: buildAuthHeaders(),
     },
   );
 
@@ -287,9 +341,12 @@ export async function requeueWorkspaceDocument(
   return (await response.json()) as DocumentSummary;
 }
 
-export async function getWorkspaceChatHistory(workspaceId: string): Promise<ChatHistoryMessage[]> {
+export async function getWorkspaceChatHistory(
+  workspaceId: string,
+  authToken?: string,
+): Promise<ChatHistoryMessage[]> {
   try {
-    return await fetchJson<ChatHistoryMessage[]>(`/api/workspaces/${workspaceId}/chat/history`);
+    return await fetchJson<ChatHistoryMessage[]>(`/api/workspaces/${workspaceId}/chat/history`, authToken);
   } catch {
     return [];
   }

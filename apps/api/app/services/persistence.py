@@ -5,7 +5,6 @@ import math
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.core.bootstrap import DEFAULT_USER_EMAIL
 from app.models import (
     AnalysisRun,
     AuditLog,
@@ -78,8 +77,13 @@ def build_workspace_retrieval_metrics(session: Session, workspace_id: str) -> di
     }
 
 
-def list_workspace_summaries(session: Session) -> list[dict]:
-    workspaces = session.scalars(select(Workspace).order_by(Workspace.created_at.asc())).all()
+def list_workspace_summaries(session: Session, *, actor: User) -> list[dict]:
+    workspaces = session.scalars(
+        select(Workspace)
+        .join(WorkspaceMember, WorkspaceMember.workspace_id == Workspace.id)
+        .where(WorkspaceMember.user_id == actor.id)
+        .order_by(Workspace.created_at.asc())
+    ).all()
     return [serialize_workspace_summary(session, workspace) for workspace in workspaces]
 
 
@@ -88,11 +92,7 @@ def _slugify_workspace_name(name: str) -> str:
     return normalized or "workspace"
 
 
-def create_workspace(session: Session, *, name: str, description: str) -> Workspace:
-    actor = session.scalar(select(User).where(User.email == DEFAULT_USER_EMAIL))
-    if actor is None:
-        raise ValueError("Demo reviewer not found")
-
+def create_workspace(session: Session, *, actor: User, name: str, description: str) -> Workspace:
     base_slug = _slugify_workspace_name(name)
     candidate_slug = base_slug
     suffix = 2
@@ -129,12 +129,16 @@ def create_workspace(session: Session, *, name: str, description: str) -> Worksp
     return workspace
 
 
-def get_workspace_by_slug(session: Session, workspace_slug: str) -> Workspace | None:
-    return session.scalar(select(Workspace).where(Workspace.slug == workspace_slug))
+def get_workspace_by_slug(session: Session, workspace_slug: str, *, actor: User) -> Workspace | None:
+    return session.scalar(
+        select(Workspace)
+        .join(WorkspaceMember, WorkspaceMember.workspace_id == Workspace.id)
+        .where(Workspace.slug == workspace_slug, WorkspaceMember.user_id == actor.id)
+    )
 
 
-def get_workspace_detail_payload(session: Session, workspace_slug: str) -> dict | None:
-    workspace = get_workspace_by_slug(session, workspace_slug)
+def get_workspace_detail_payload(session: Session, workspace_slug: str, *, actor: User) -> dict | None:
+    workspace = get_workspace_by_slug(session, workspace_slug, actor=actor)
     if workspace is None:
         return None
 
@@ -182,8 +186,8 @@ def get_workspace_detail_payload(session: Session, workspace_slug: str) -> dict 
     }
 
 
-def list_workspace_audit_events(session: Session, workspace_slug: str) -> list[dict]:
-    workspace = get_workspace_by_slug(session, workspace_slug)
+def list_workspace_audit_events(session: Session, workspace_slug: str, *, actor: User) -> list[dict]:
+    workspace = get_workspace_by_slug(session, workspace_slug, actor=actor)
     if workspace is None:
         return []
 
@@ -205,8 +209,8 @@ def list_workspace_audit_events(session: Session, workspace_slug: str) -> list[d
     ]
 
 
-def list_workspace_documents(session: Session, workspace_slug: str) -> list[dict]:
-    workspace = get_workspace_by_slug(session, workspace_slug)
+def list_workspace_documents(session: Session, workspace_slug: str, *, actor: User) -> list[dict]:
+    workspace = get_workspace_by_slug(session, workspace_slug, actor=actor)
     if workspace is None:
         return []
 
@@ -233,8 +237,10 @@ def get_workspace_document_payload(
     session: Session,
     workspace_slug: str,
     document_id: str,
+    *,
+    actor: User,
 ) -> dict | None:
-    workspace = get_workspace_by_slug(session, workspace_slug)
+    workspace = get_workspace_by_slug(session, workspace_slug, actor=actor)
     if workspace is None:
         return None
 
@@ -307,8 +313,10 @@ def requeue_workspace_document(
     session: Session,
     workspace_slug: str,
     document_id: str,
+    *,
+    actor: User,
 ) -> Document | None:
-    workspace = get_workspace_by_slug(session, workspace_slug)
+    workspace = get_workspace_by_slug(session, workspace_slug, actor=actor)
     if workspace is None:
         return None
 
@@ -324,11 +332,10 @@ def requeue_workspace_document(
     document.parser_stage = "queued"
     session.add(document)
 
-    actor = session.scalar(select(User).where(User.email == DEFAULT_USER_EMAIL))
     session.add(
         AuditLog(
             workspace_id=workspace.id,
-            actor_id=actor.id if actor else None,
+            actor_id=actor.id,
             event_type="analysis.requeued",
             message=f"Requeued {document.filename} for another analysis pass",
         )
@@ -338,15 +345,15 @@ def requeue_workspace_document(
     return document
 
 
-def list_workspace_chat_history(session: Session, workspace_slug: str) -> list[dict]:
-    workspace = get_workspace_by_slug(session, workspace_slug)
+def list_workspace_chat_history(session: Session, workspace_slug: str, *, actor: User) -> list[dict]:
+    workspace = get_workspace_by_slug(session, workspace_slug, actor=actor)
     if workspace is None:
         return []
 
     messages = session.scalars(
         select(ChatMessage)
         .join(ChatSession, ChatSession.id == ChatMessage.session_id)
-        .where(ChatSession.workspace_id == workspace.id)
+        .where(ChatSession.workspace_id == workspace.id, ChatSession.user_id == actor.id)
         .order_by(ChatMessage.created_at.asc())
     ).all()
 
@@ -469,11 +476,12 @@ def create_document_upload_record(
     session: Session,
     workspace_slug: str,
     *,
+    actor: User,
     filename: str,
     storage_path: str,
     mime_type: str | None,
 ) -> Document:
-    workspace = get_workspace_by_slug(session, workspace_slug)
+    workspace = get_workspace_by_slug(session, workspace_slug, actor=actor)
     if workspace is None:
         raise ValueError("Workspace not found")
 
@@ -488,11 +496,10 @@ def create_document_upload_record(
     session.add(document)
     session.flush()
 
-    actor = session.scalar(select(User).where(User.email == DEFAULT_USER_EMAIL))
     session.add(
         AuditLog(
             workspace_id=workspace.id,
-            actor_id=actor.id if actor else None,
+            actor_id=actor.id,
             event_type="document.uploaded",
             message=f"Uploaded {filename}",
         )
@@ -628,14 +635,10 @@ def fail_document_processing(session: Session, document_id: str, reason: str) ->
     return document
 
 
-def create_chat_exchange(session: Session, workspace_slug: str, question: str) -> dict:
-    workspace = get_workspace_by_slug(session, workspace_slug)
+def create_chat_exchange(session: Session, workspace_slug: str, question: str, *, actor: User) -> dict:
+    workspace = get_workspace_by_slug(session, workspace_slug, actor=actor)
     if workspace is None:
         raise ValueError("Workspace not found")
-
-    actor = session.scalar(select(User).where(User.email == DEFAULT_USER_EMAIL))
-    if actor is None:
-        raise ValueError("Demo reviewer not found")
 
     chat_session = session.scalar(
         select(ChatSession)

@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import AuthSession, User
+from app.services.persistence import create_workspace
 
 
 def hash_password(password: str) -> str:
@@ -39,6 +40,18 @@ def _create_auth_session(session: Session, user: User, *, mode: str) -> AuthSess
     session.commit()
     session.refresh(auth_session)
     return auth_session
+
+
+def get_user_by_access_token(session: Session, access_token: str) -> tuple[User, AuthSession] | None:
+    auth_session = session.scalar(select(AuthSession).where(AuthSession.access_token == access_token))
+    if auth_session is None:
+        return None
+
+    user = session.scalar(select(User).where(User.id == auth_session.user_id))
+    if user is None:
+        return None
+
+    return user, auth_session
 
 
 def register_user(
@@ -99,6 +112,12 @@ def create_guest_session(session: Session) -> dict[str, str]:
     session.refresh(user)
 
     auth_session = _create_auth_session(session, user, mode="guest")
+    create_workspace(
+        session,
+        actor=user,
+        name="Guest Sandbox Review",
+        description="A private starter workspace for exploring uploads, evidence views, and AI Q&A.",
+    )
     return {
         "access_token": auth_session.access_token,
         "mode": "guest",

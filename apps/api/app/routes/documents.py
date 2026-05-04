@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.db import get_db
+from app.dependencies.auth import CurrentViewer, get_current_viewer
 from app.schemas.documents import DocumentStatus
 from app.services.document_processing import process_document
 from app.services.persistence import create_document_upload_record
@@ -17,6 +18,7 @@ async def upload_document(
     workspace_id: str = Form(...),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
+    viewer: CurrentViewer = Depends(get_current_viewer),
 ) -> DocumentStatus:
     upload_dir = Path(settings.upload_dir)
     upload_dir.mkdir(parents=True, exist_ok=True)
@@ -28,6 +30,7 @@ async def upload_document(
         document = create_document_upload_record(
             db,
             workspace_id,
+            actor=viewer.user,
             filename=file.filename,
             storage_path=str(target),
             mime_type=file.content_type,

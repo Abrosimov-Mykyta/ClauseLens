@@ -10,9 +10,9 @@ type DocumentDetailPageProps = {
 };
 
 export default async function DocumentDetailPage({ params }: DocumentDetailPageProps) {
-  await requireViewerSession();
+  const viewer = await requireViewerSession();
   const { id, documentId } = await params;
-  const document = await getWorkspaceDocument(id, documentId);
+  const document = await getWorkspaceDocument(id, documentId, viewer.accessToken);
 
   return (
     <main className="page-shell">
