@@ -2,12 +2,14 @@ import Link from "next/link";
 import { Topbar } from "../../../components/topbar";
 import { UploadPanel } from "../../../components/upload-panel";
 import { getAuditEvents, getWorkspace } from "../../../lib/api";
+import { requireViewerSession } from "../../../lib/viewer-session";
 
 type WorkspacePageProps = {
   params: Promise<{ id: string }>;
 };
 
 export default async function WorkspaceDetailPage({ params }: WorkspacePageProps) {
+  await requireViewerSession();
   const { id } = await params;
   const workspace = await getWorkspace(id);
   const auditEvents = await getAuditEvents(id);

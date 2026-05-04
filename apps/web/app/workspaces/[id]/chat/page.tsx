@@ -1,12 +1,14 @@
 import { ChatConsole } from "../../../../components/chat-console";
 import { Topbar } from "../../../../components/topbar";
 import { getWorkspaceChatHistory, getWorkspaceDocuments } from "../../../../lib/api";
+import { requireViewerSession } from "../../../../lib/viewer-session";
 
 type ChatPageProps = {
   params: Promise<{ id: string }>;
 };
 
 export default async function WorkspaceChatPage({ params }: ChatPageProps) {
+  await requireViewerSession();
   const { id } = await params;
   const history = await getWorkspaceChatHistory(id);
   const documents = await getWorkspaceDocuments(id);

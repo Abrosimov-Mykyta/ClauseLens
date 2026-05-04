@@ -5,6 +5,7 @@ from app.core.bootstrap import seed_database
 from app.core.config import settings
 from app.core.db import Base, SessionLocal, engine, ensure_runtime_schema
 from app.models import AuditLog, AnalysisRun, ChatMessage, ChatSession, Document, DocumentChunk, User, Workspace, WorkspaceMember
+from app.routes.auth import router as auth_router
 from app.routes.chat import router as chat_router
 from app.routes.documents import router as documents_router
 from app.routes.health import router as health_router
@@ -30,6 +31,7 @@ def initialize_database() -> None:
 
 
 app.include_router(health_router)
+app.include_router(auth_router, prefix="/api")
 app.include_router(workspaces_router, prefix="/api")
 app.include_router(documents_router, prefix="/api")
 app.include_router(chat_router, prefix="/api")

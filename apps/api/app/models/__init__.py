@@ -1,9 +1,10 @@
 from app.models.audit_log import AuditLog
 from app.models.document import Document, DocumentChunk
-from app.models.workspace import AnalysisRun, ChatMessage, ChatSession, User, Workspace, WorkspaceMember
+from app.models.workspace import AnalysisRun, AuthSession, ChatMessage, ChatSession, User, Workspace, WorkspaceMember
 
 __all__ = [
     "AnalysisRun",
+    "AuthSession",
     "AuditLog",
     "ChatMessage",
     "ChatSession",
@@ -13,4 +14,3 @@ __all__ = [
     "Workspace",
     "WorkspaceMember",
 ]
-

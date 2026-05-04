@@ -2,8 +2,10 @@ import { CreateWorkspaceForm } from "../../components/create-workspace-form";
 import Link from "next/link";
 import { Topbar } from "../../components/topbar";
 import { getWorkspaces } from "../../lib/api";
+import { requireViewerSession } from "../../lib/viewer-session";
 
 export default async function WorkspacesPage() {
+  await requireViewerSession();
   const workspaces = await getWorkspaces();
 
   return (

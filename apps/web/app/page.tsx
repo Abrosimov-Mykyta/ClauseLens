@@ -2,9 +2,11 @@ import Link from "next/link";
 import { Topbar } from "../components/topbar";
 import { getWorkspaces } from "../lib/api";
 import { highlights } from "../lib/demo-data";
+import { getViewerSession } from "../lib/viewer-session";
 
 export default async function HomePage() {
   const workspaces = await getWorkspaces();
+  const viewer = await getViewerSession();
 
   return (
     <main className="page-shell">
@@ -19,12 +21,25 @@ export default async function HomePage() {
             a fast MVP into a serious multi-tenant review platform.
           </p>
           <div className="cta-row">
-            <Link href="/workspaces" className="button button-primary">
-              Open workspaces
-            </Link>
-            <Link href="/workspaces/ws-acme/chat" className="button button-secondary">
-              Preview AI chat
-            </Link>
+            {viewer ? (
+              <>
+                <Link href="/workspaces" className="button button-primary">
+                  Open workspaces
+                </Link>
+                <Link href="/workspaces/ws-acme/chat" className="button button-secondary">
+                  Preview AI chat
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link href="/auth" className="button button-primary">
+                  Login or register
+                </Link>
+                <Link href="/auth" className="button button-secondary">
+                  View as guest
+                </Link>
+              </>
+            )}
           </div>
         </div>
 

@@ -22,13 +22,18 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, futu
 
 def ensure_runtime_schema() -> None:
     inspector = inspect(engine)
-    if "document_chunks" not in inspector.get_table_names():
-        return
+    table_names = inspector.get_table_names()
+    if "document_chunks" in table_names:
+        document_chunk_columns = {column["name"] for column in inspector.get_columns("document_chunks")}
+        if "embedding_json" not in document_chunk_columns:
+            with engine.begin() as connection:
+                connection.execute(text("ALTER TABLE document_chunks ADD COLUMN embedding_json TEXT"))
 
-    document_chunk_columns = {column["name"] for column in inspector.get_columns("document_chunks")}
-    if "embedding_json" not in document_chunk_columns:
-        with engine.begin() as connection:
-            connection.execute(text("ALTER TABLE document_chunks ADD COLUMN embedding_json TEXT"))
+    if "users" in table_names:
+        user_columns = {column["name"] for column in inspector.get_columns("users")}
+        if "password_hash" not in user_columns:
+            with engine.begin() as connection:
+                connection.execute(text("ALTER TABLE users ADD COLUMN password_hash TEXT"))
 
 
 def get_db() -> Generator[Session, None, None]:

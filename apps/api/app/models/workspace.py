@@ -1,4 +1,5 @@
 from datetime import datetime
+from secrets import token_urlsafe
 from uuid import uuid4
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
@@ -22,9 +23,11 @@ class User(TimestampMixin, Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    password_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     memberships: Mapped[list["WorkspaceMember"]] = relationship(back_populates="user")
     chat_sessions: Mapped[list["ChatSession"]] = relationship(back_populates="user")
+    auth_sessions: Mapped[list["AuthSession"]] = relationship(back_populates="user")
 
 
 class Workspace(TimestampMixin, Base):
@@ -96,6 +99,16 @@ class ChatMessage(TimestampMixin, Base):
     session: Mapped["ChatSession"] = relationship(back_populates="messages")
 
 
+class AuthSession(TimestampMixin, Base):
+    __tablename__ = "auth_sessions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False)
+    mode: Mapped[str] = mapped_column(String(20), default="member", nullable=False)
+    access_token: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, default=token_urlsafe)
+
+    user: Mapped["User"] = relationship(back_populates="auth_sessions")
+
+
 from app.models.audit_log import AuditLog  # noqa: E402
 from app.models.document import Document  # noqa: E402
-

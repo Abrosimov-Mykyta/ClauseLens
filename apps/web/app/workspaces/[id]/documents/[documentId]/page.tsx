@@ -3,12 +3,14 @@ import Link from "next/link";
 import { DocumentActions } from "../../../../../components/document-actions";
 import { Topbar } from "../../../../../components/topbar";
 import { buildCitationAnchor, getWorkspaceDocument } from "../../../../../lib/api";
+import { requireViewerSession } from "../../../../../lib/viewer-session";
 
 type DocumentDetailPageProps = {
   params: Promise<{ id: string; documentId: string }>;
 };
 
 export default async function DocumentDetailPage({ params }: DocumentDetailPageProps) {
+  await requireViewerSession();
   const { id, documentId } = await params;
   const document = await getWorkspaceDocument(id, documentId);
 

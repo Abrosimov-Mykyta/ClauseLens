@@ -1,17 +1,35 @@
 import Link from "next/link";
 
-export function Topbar() {
+import { signOutViewer } from "../app/auth/actions";
+import { getViewerSession } from "../lib/viewer-session";
+
+export async function Topbar() {
+  const viewer = await getViewerSession();
+
   return (
     <header className="topbar">
       <Link href="/" className="brand">
         ClauseLens
       </Link>
       <nav className="nav-links" aria-label="Primary navigation">
-        <Link href="/workspaces">Workspaces</Link>
-        <Link href="/workspaces/ws-acme">Review</Link>
-        <Link href="/workspaces/ws-acme/chat">AI Chat</Link>
+        {viewer ? (
+          <>
+            <Link href="/workspaces">Workspaces</Link>
+            <Link href="/workspaces/ws-acme">Review</Link>
+            <Link href="/workspaces/ws-acme/chat">AI Chat</Link>
+            <span className="status-pill status-pill-neutral">
+              {viewer.mode === "guest" ? "Guest mode" : viewer.displayName}
+            </span>
+            <form action={signOutViewer}>
+              <button type="submit" className="button button-secondary">
+                Exit
+              </button>
+            </form>
+          </>
+        ) : (
+          <Link href="/auth">Login / Guest access</Link>
+        )}
       </nav>
     </header>
   );
 }
-
