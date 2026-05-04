@@ -5,8 +5,8 @@ import { highlights } from "../lib/demo-data";
 import { getViewerSession } from "../lib/viewer-session";
 
 export default async function HomePage() {
-  const workspaces = await getWorkspaces();
   const viewer = await getViewerSession();
+  const workspaces = viewer ? await getWorkspaces(viewer.accessToken) : await getWorkspaces();
 
   return (
     <main className="page-shell">
@@ -20,14 +20,25 @@ export default async function HomePage() {
             obligations, red flags, and cited answers. The architecture is built to grow from
             a fast MVP into a serious multi-tenant review platform.
           </p>
+          {viewer ? (
+            <div className="viewer-summary">
+              <div className="status-pill status-pill-neutral">
+                {viewer.mode === "guest" ? "Guest session active" : "Signed in"}
+              </div>
+              <div className="viewer-meta">
+                <span>{viewer.displayName}</span>
+                <span>{viewer.email}</span>
+              </div>
+            </div>
+          ) : null}
           <div className="cta-row">
             {viewer ? (
               <>
                 <Link href="/workspaces" className="button button-primary">
                   Open workspaces
                 </Link>
-                <Link href="/workspaces/ws-acme/chat" className="button button-secondary">
-                  Preview AI chat
+                <Link href="/auth" className="button button-secondary">
+                  Switch account
                 </Link>
               </>
             ) : (
@@ -68,17 +79,32 @@ export default async function HomePage() {
 
       <h2 className="section-title">Latest workspaces</h2>
       <section className="workspace-grid">
-        {workspaces.map((workspace) => (
-          <Link key={workspace.id} href={`/workspaces/${workspace.id}`} className="workspace-card">
-            <div className="status-pill">
-              {workspace.status === "ready" ? "Ready for review" : "Processing"}
-            </div>
-            <h3>{workspace.name}</h3>
-            <p className="lede">
-              {workspace.documents} documents, {workspace.risks} flagged issues.
+        {workspaces.length ? (
+          workspaces.map((workspace) => (
+            <Link key={workspace.id} href={`/workspaces/${workspace.id}`} className="workspace-card">
+              <div className="status-pill">
+                {workspace.status === "ready" ? "Ready for review" : "Processing"}
+              </div>
+              <h3>{workspace.name}</h3>
+              <p className="lede">
+                {workspace.documents} documents, {workspace.risks} flagged issues.
+              </p>
+            </Link>
+          ))
+        ) : (
+          <article className="workspace-card empty-state">
+            <h3 className="empty-state-title">No workspaces yet</h3>
+            <p className="empty-state-text">
+              Start with guest access for a disposable sandbox, or create a member account and open
+              your first diligence review workspace.
             </p>
-          </Link>
-        ))}
+            <div className="cta-row" style={{ marginTop: 0 }}>
+              <Link href="/auth" className="button button-primary">
+                Open auth
+              </Link>
+            </div>
+          </article>
+        )}
       </section>
 
       <h2 className="section-title">What the AI is surfacing</h2>

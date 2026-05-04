@@ -15,14 +15,13 @@ export async function Topbar() {
         {viewer ? (
           <>
             <Link href="/workspaces">Workspaces</Link>
-            <Link href="/workspaces/ws-acme">Review</Link>
-            <Link href="/workspaces/ws-acme/chat">AI Chat</Link>
+            <Link href="/auth">Account</Link>
             <span className="status-pill status-pill-neutral">
-              {viewer.mode === "guest" ? "Guest mode" : viewer.displayName}
+              {viewer.mode === "guest" ? "Guest sandbox" : viewer.displayName}
             </span>
             <form action={signOutViewer}>
               <button type="submit" className="button button-secondary">
-                Exit
+                Sign out
               </button>
             </form>
           </>

@@ -41,6 +41,14 @@ export function UploadPanel({ workspaceId, workspaceName }: UploadPanelProps) {
         Send a contract, memo, or diligence file into <strong>{workspaceName}</strong> and queue it
         for parsing and analysis.
       </p>
+      <div className="callout">
+        <h4 className="callout-title">Best first upload</h4>
+        <p className="callout-text">
+          A text PDF, memo, or plain-text contract works best for the first pass. ClauseLens will
+          extract chunks, generate a structured analysis snapshot, and expose the evidence for
+          cited follow-up questions.
+        </p>
+      </div>
       <label className="upload-dropzone">
         <span>Select a file for the ingestion queue</span>
         <input
@@ -91,10 +99,20 @@ export function UploadPanel({ workspaceId, workspaceName }: UploadPanelProps) {
               The worker will advance this document through parsing, chunking, and analysis. The
               page refreshes automatically while it is still in progress.
             </p>
-          ) : null}
+          ) : (
+            <p className="helper-text">
+              The document is ready. Open the evidence view or continue to AI chat for grounded
+              follow-up questions.
+            </p>
+          )}
         </div>
       ) : null}
-      {error ? <p className="error-text">{error}</p> : null}
+      {error ? (
+        <div className="callout callout-warn" style={{ marginTop: 18 }}>
+          <h4 className="callout-title">Upload did not complete</h4>
+          <p className="callout-text">{error}</p>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -72,40 +72,58 @@ export function ChatConsole({ workspaceId, initialMessages, documents }: ChatCon
 
   return (
     <section className="panel" style={{ marginTop: 24 }}>
-      <div className="list">
-        {messages.map((message, index) => (
-          <article key={`${message.role}-${index}`} className="list-item">
-            <strong>{message.role === "user" ? "Reviewer" : "ClauseLens AI"}</strong>
-            <div className="message-body">{renderMessageContent(message.content)}</div>
-            {message.citations?.length ? (
-              <div className="helper-text citation-row">
-                <span>Citations:</span>
-                <div className="citation-links">
-                  {message.citations.map((citation, citationIndex) => {
-                    const document = resolveCitationDocument(citation, documents);
-                    if (!document) {
-                      return (
-                        <span key={`${citation}-${citationIndex}`} className="citation-chip">
-                          {citation}
-                        </span>
-                      );
-                    }
+      <div className="callout">
+        <h3 className="callout-title">How to use this review chat</h3>
+        <p className="callout-text">
+          Ask about risky clauses, obligations, missing protections, unusual wording, or what to
+          review next. Every answer should stay grounded in the uploaded workspace evidence.
+        </p>
+      </div>
 
-                    return (
-                      <Link
-                        key={`${citation}-${citationIndex}`}
-                        href={`/workspaces/${workspaceId}/documents/${document.id}#${buildCitationAnchor(citation)}`}
-                        className="citation-chip citation-chip-link"
-                      >
-                        {citation}
-                      </Link>
-                    );
-                  })}
+      <div className="list">
+        {messages.length ? (
+          messages.map((message, index) => (
+            <article key={`${message.role}-${index}`} className="list-item">
+              <strong>{message.role === "user" ? "Reviewer" : "ClauseLens AI"}</strong>
+              <div className="message-body">{renderMessageContent(message.content)}</div>
+              {message.citations?.length ? (
+                <div className="helper-text citation-row">
+                  <span>Citations:</span>
+                  <div className="citation-links">
+                    {message.citations.map((citation, citationIndex) => {
+                      const document = resolveCitationDocument(citation, documents);
+                      if (!document) {
+                        return (
+                          <span key={`${citation}-${citationIndex}`} className="citation-chip">
+                            {citation}
+                          </span>
+                        );
+                      }
+
+                      return (
+                        <Link
+                          key={`${citation}-${citationIndex}`}
+                          href={`/workspaces/${workspaceId}/documents/${document.id}#${buildCitationAnchor(citation)}`}
+                          className="citation-chip citation-chip-link"
+                        >
+                          {citation}
+                        </Link>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ) : null}
+              ) : null}
+            </article>
+          ))
+        ) : (
+          <article className="message-empty">
+            <p className="empty-state-title">No chat history yet</p>
+            <p className="empty-state-text">
+              Start with a focused question like “What clauses look risky?”, “Summarize the red
+              flags”, or “What should counsel review next?”
+            </p>
           </article>
-        ))}
+        )}
       </div>
 
       <div className="composer">
@@ -162,7 +180,12 @@ export function ChatConsole({ workspaceId, initialMessages, documents }: ChatCon
             {isPending ? "Thinking..." : "Ask ClauseLens"}
           </button>
         </div>
-        {error ? <p className="error-text">{error}</p> : null}
+        {error ? (
+          <div className="callout callout-warn" style={{ marginTop: 18 }}>
+            <h4 className="callout-title">Question was not processed</h4>
+            <p className="callout-text">{error}</p>
+          </div>
+        ) : null}
       </div>
 
       {latestEvidence.length ? (

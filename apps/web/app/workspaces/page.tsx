@@ -18,6 +18,15 @@ export default async function WorkspacesPage() {
           Each workspace groups uploaded documents, asynchronous analysis runs, AI answers, and
           an audit trail.
         </p>
+        <div className="viewer-summary">
+          <div className={`status-pill ${viewer.mode === "guest" ? "status-pill-neutral" : ""}`}>
+            {viewer.mode === "guest" ? "Guest sandbox active" : "Member workspace hub"}
+          </div>
+          <div className="viewer-meta">
+            <span>{viewer.displayName}</span>
+            <span>{viewer.email}</span>
+          </div>
+        </div>
       </section>
 
       <section className="workspace-grid" style={{ marginTop: 24 }}>
@@ -34,6 +43,11 @@ export default async function WorkspacesPage() {
                 ? "Use the create form to open another private review space, or refresh in a moment if your guest sandbox has just been provisioned."
                 : "Your account is ready. Create a workspace to start uploading documents, running analysis, and asking grounded follow-up questions."}
             </p>
+            <ul className="helper-list">
+              <li>Create a workspace with a real review scope or deal name</li>
+              <li>Upload one PDF or TXT file to trigger your first analysis snapshot</li>
+              <li>Move into chat for cited follow-up questions</li>
+            </ul>
           </article>
         ) : null}
 
