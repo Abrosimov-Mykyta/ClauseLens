@@ -10,6 +10,11 @@ export type WorkspaceSummary = {
   risks: number;
 };
 
+export type WorkspaceCreateInput = {
+  name: string;
+  description: string;
+};
+
 export type WorkspaceDetail = WorkspaceSummary & {
   description: string;
   members: number;
@@ -155,6 +160,22 @@ export async function getWorkspaces(): Promise<WorkspaceSummary[]> {
   } catch {
     return demoWorkspaces;
   }
+}
+
+export async function createWorkspace(input: WorkspaceCreateInput): Promise<WorkspaceSummary> {
+  const response = await fetch(`${apiBaseUrl}/api/workspaces`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    throw new Error("Workspace creation failed");
+  }
+
+  return (await response.json()) as WorkspaceSummary;
 }
 
 export async function getWorkspace(workspaceId: string): Promise<WorkspaceDetail> {

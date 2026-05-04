@@ -1,3 +1,4 @@
+import { CreateWorkspaceForm } from "../../components/create-workspace-form";
 import Link from "next/link";
 import { Topbar } from "../../components/topbar";
 import { getWorkspaces } from "../../lib/api";
@@ -18,6 +19,8 @@ export default async function WorkspacesPage() {
       </section>
 
       <section className="workspace-grid" style={{ marginTop: 24 }}>
+        <CreateWorkspaceForm />
+
         {workspaces.map((workspace) => (
           <article key={workspace.id} className="workspace-card">
             <div className="status-pill">

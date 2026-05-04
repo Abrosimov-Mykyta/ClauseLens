@@ -83,6 +83,52 @@ def list_workspace_summaries(session: Session) -> list[dict]:
     return [serialize_workspace_summary(session, workspace) for workspace in workspaces]
 
 
+def _slugify_workspace_name(name: str) -> str:
+    normalized = re.sub(r"[^a-zA-Z0-9]+", "-", name.strip().lower()).strip("-")
+    return normalized or "workspace"
+
+
+def create_workspace(session: Session, *, name: str, description: str) -> Workspace:
+    actor = session.scalar(select(User).where(User.email == DEFAULT_USER_EMAIL))
+    if actor is None:
+        raise ValueError("Demo reviewer not found")
+
+    base_slug = _slugify_workspace_name(name)
+    candidate_slug = base_slug
+    suffix = 2
+    while session.scalar(select(Workspace).where(Workspace.slug == candidate_slug)) is not None:
+        candidate_slug = f"{base_slug}-{suffix}"
+        suffix += 1
+
+    workspace = Workspace(
+        name=name.strip(),
+        slug=candidate_slug,
+        description=description.strip(),
+        status="ready",
+    )
+    session.add(workspace)
+    session.flush()
+
+    session.add(
+        WorkspaceMember(
+            workspace_id=workspace.id,
+            user_id=actor.id,
+            role="owner",
+        )
+    )
+    session.add(
+        AuditLog(
+            workspace_id=workspace.id,
+            actor_id=actor.id,
+            event_type="workspace.created",
+            message=f"Created workspace {workspace.name}",
+        )
+    )
+    session.commit()
+    session.refresh(workspace)
+    return workspace
+
+
 def get_workspace_by_slug(session: Session, workspace_slug: str) -> Workspace | None:
     return session.scalar(select(Workspace).where(Workspace.slug == workspace_slug))
 

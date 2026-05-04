@@ -6,9 +6,11 @@ from app.core.db import get_db
 from app.schemas.audit import AuditEvent
 from app.schemas.chat import ChatHistoryMessage
 from app.schemas.documents import DocumentDetail, DocumentSummary
+from app.schemas.workspace_create import WorkspaceCreateRequest
 from app.schemas.workspaces import WorkspaceDetail, WorkspaceSummary
 from app.services.document_processing import process_document
 from app.services.persistence import (
+    create_workspace,
     get_workspace_detail_payload,
     get_workspace_document_payload,
     list_workspace_chat_history,
@@ -16,6 +18,7 @@ from app.services.persistence import (
     list_workspace_audit_events,
     list_workspace_summaries,
     requeue_workspace_document,
+    serialize_workspace_summary,
 )
 
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
@@ -35,6 +38,15 @@ def serialize_document_summary(document, *, status: str | None = None, stage: st
 @router.get("", response_model=list[WorkspaceSummary])
 def get_workspaces(db: Session = Depends(get_db)) -> list[WorkspaceSummary]:
     return [WorkspaceSummary(**item) for item in list_workspace_summaries(db)]
+
+
+@router.post("", response_model=WorkspaceSummary)
+def create_workspace_endpoint(
+    payload: WorkspaceCreateRequest,
+    db: Session = Depends(get_db),
+) -> WorkspaceSummary:
+    workspace = create_workspace(db, name=payload.name, description=payload.description)
+    return WorkspaceSummary(**serialize_workspace_summary(db, workspace))
 
 
 @router.get("/{workspace_id}", response_model=WorkspaceDetail)
