@@ -2,85 +2,204 @@
 
 ## Goal
 
-Build a portfolio-grade AI due diligence workspace that can ingest legal documents, extract structure, surface risk, and answer follow-up questions with citations.
+ClauseLens is an AI due diligence workspace that turns uploaded documents into:
 
-## Architecture overview
+- structured summaries
+- red flags
+- obligations
+- follow-up questions
+- grounded Q&A with citations
+
+The system is intentionally built as a portfolio-ready full stack product, not just a chat demo.
+
+## High-level architecture
 
 ```text
 Next.js web app
-  -> FastAPI application
-     -> Postgres for metadata and analysis state
-     -> Redis for job orchestration
-     -> Local uploads directory for MVP file storage
-     -> OpenAI for embeddings and structured analysis
-  -> Celery worker
-     -> parsing
-     -> chunking
-     -> embedding
-     -> analysis
+  -> FastAPI API
+     -> SQLAlchemy persistence
+     -> local uploads directory (MVP)
+     -> OpenAI analysis + embeddings
+     -> auth/session ownership layer
+
+Optional local worker
+  -> claims queued documents
+  -> parses text
+  -> chunks content
+  -> embeds chunks
+  -> writes analysis + retrieval state
 ```
 
-## Core domains
+## Runtime modes
+
+ClauseLens supports two ingestion modes:
+
+### `PROCESSING_MODE=worker`
+
+Used mainly for local architecture demos.
+
+Flow:
+
+1. upload creates a queued document
+2. worker claims the queued job
+3. worker parses, chunks, embeds, and analyzes
+4. workspace and document state become `ready / analyzed`
+
+### `PROCESSING_MODE=inline`
+
+Used for simpler production deployment.
+
+Flow:
+
+1. upload enters the API
+2. parsing, chunking, embedding, and analysis run in-request
+3. document returns directly as processed state
+
+This avoids shared-filesystem issues between API and worker in single-service deployments such as `Vercel + Render`.
+
+## Core backend domains
+
+### Users
+
+- support `member` and `guest` sessions
+- store email, display name, password hash
+- own workspaces through `workspace_members`
+
+### Auth sessions
+
+- persisted access tokens
+- identify the current viewer on API requests
+- allow lightweight auth without introducing JWT infrastructure
 
 ### Workspaces
 
-- Container for a due diligence review
-- Holds documents, analysis runs, chat sessions, and audit logs
-- Designed to become multi-tenant later with workspace memberships
+- private containers for diligence reviews
+- scoped to the current member or guest
+- aggregate documents, analysis, chat, and audit history
 
 ### Documents
 
-- Source files uploaded by a reviewer
-- Track lifecycle states such as `uploaded`, `processing`, `ready`, and `failed`
-- Will eventually store parser metadata, MIME types, and ingestion timings
+- uploaded source files
+- track lifecycle:
+  - `uploaded`
+  - `processing`
+  - `ready`
+  - `failed`
 
-### Analysis
+### Document chunks
 
-- Structured AI output over a document or workspace
-- Summary
-- Key obligations
-- Red flags
-- Follow-up questions
+- parsed text units
+- citation labels for evidence linking
+- embedding storage for retrieval
+
+### Analysis runs
+
+- structured AI output:
+  - summary
+  - red flags
+  - obligations
+  - follow-up questions
 
 ### Chat
 
-- Retrieval-augmented answers over indexed content
-- Each answer should include supporting citations
-- Full prompt and response traces can later feed audit and eval systems
+- workspace-scoped reviewer conversations
+- retrieval over document chunks and recent analysis
+- citations attached to answers
 
-## Day-one MVP decisions
+### Audit logs
 
-- Use a monorepo to keep web, API, and worker aligned
-- Start with simple demo-backed API responses before wiring the database
-- Save uploads locally while keeping the API contract compatible with future object storage
-- Build visible dashboard pages early so the project reads well in a portfolio from the first commit
-- Standardize local backend execution on Python 3.13 because current Python 3.14 wheels around `pydantic-core` are not ready in this environment
+- append-only record of:
+  - workspace creation
+  - uploads
+  - analysis lifecycle events
+  - reviewer questions
 
-## Planned next steps
+## Retrieval design
 
-1. Add persistent models and migrations
-2. Connect upload flow to queued background jobs
-3. Implement chunking and embeddings
-4. Add structured due diligence analysis prompts
-5. Replace demo chat responses with retrieval-backed answers
+ClauseLens uses a lightweight hybrid retrieval approach:
 
-## Current verified API slice
+- lexical overlap on the reviewer question
+- embedding similarity for document chunks
+- recent structured analysis as extra context
 
-- `GET /health`
-- `GET /api/workspaces`
-- `GET /api/workspaces/{workspace_id}`
-- `GET /api/workspaces/{workspace_id}/audit`
-- `POST /api/workspaces/{workspace_id}/chat`
-- `POST /api/documents/upload`
+The final context bundle can include:
 
-## Target relational model
+- source document chunks
+- analysis `summary`
+- analysis `red_flags`
+- analysis `obligations`
+- analysis `follow_up_questions`
 
-- `users`: reviewers and future team members
-- `workspaces`: due diligence containers scoped by organization later
-- `workspace_members`: role assignments per workspace
-- `documents`: uploaded source files and ingestion state
-- `document_chunks`: parsed text units with citation labels and future embeddings
-- `analysis_runs`: AI-generated summaries, red flags, obligations, and follow-ups
-- `chat_sessions`: grouped question-and-answer threads
-- `chat_messages`: stored prompts, answers, and citations
-- `audit_logs`: append-only operational history for user and system actions
+This lets the assistant answer from both raw evidence and recent structured review state.
+
+## Viewer ownership model
+
+After auth was introduced, the app moved away from shared demo data.
+
+Now:
+
+- `GET /api/workspaces` returns only workspaces owned by the current viewer
+- workspace detail, document detail, chat history, upload, and requeue actions all resolve through that viewer context
+- guest access provisions a private starter workspace instead of dropping users into shared seeded data
+
+This makes the portfolio demo feel much closer to a real SaaS product.
+
+## Main user flows
+
+### Auth flow
+
+1. user registers or logs in
+2. or chooses `View as guest`
+3. frontend stores a lightweight viewer cookie
+4. browser and server-rendered pages pass `Bearer` auth to the API
+
+### Upload flow
+
+1. user uploads a file inside a workspace
+2. API persists a document row and audit event
+3. document enters `queued` or runs inline immediately
+4. parser extracts text
+5. chunker creates citation units
+6. embeddings are generated
+7. analysis snapshot is stored
+
+### Chat flow
+
+1. reviewer asks a question
+2. backend retrieves top evidence
+3. model answers from retrieved context
+4. citations are saved and rendered
+5. user can click through into evidence chunks
+
+## Local persistence and production path
+
+### Local MVP
+
+- SQLite for persistence
+- local uploads directory
+- optional local worker process
+
+### Production MVP
+
+- Postgres via `DATABASE_URL_OVERRIDE`
+- inline processing on the API
+- Vercel frontend + Render backend
+
+## Known tradeoffs
+
+- uploads are still local-file based instead of object storage
+- auth uses simple persisted access tokens instead of a full identity stack
+- retrieval is intentionally lightweight rather than a full vector database deployment
+- guest sessions are pragmatic product demos, not enterprise access controls
+
+## Why this architecture works well for a portfolio
+
+It shows:
+
+- real backend structure
+- clear domain modeling
+- async-capable ingestion
+- AI integration beyond a single prompt
+- evidence-backed answers
+- user-scoped ownership
+- production deployment thinking and tradeoffs

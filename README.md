@@ -1,122 +1,268 @@
 # ClauseLens
 
-ClauseLens is an AI due diligence workspace for reviewing contracts and other legal documents. The app is designed as a portfolio-grade full stack system with document ingestion, retrieval, structured analysis, and auditable AI answers.
+ClauseLens is a portfolio-grade AI due diligence workspace for reviewing contracts and diligence files with structured analysis, cited chat answers, and auditable workflow state.
 
-## Product scope
+It is designed to feel like a real SaaS product rather than a single-prompt demo:
 
-- Create workspaces for document review
-- Upload legal files and track ingestion state
-- Generate AI summaries, red flags, obligations, and follow-up questions
-- Ask questions over uploaded documents with citations
-- Keep an audit trail for uploads, analyses, and chat events
+- `register`, `login`, or `view as guest`
+- create private workspaces per viewer
+- upload a document and track ingestion state
+- generate summaries, red flags, obligations, and follow-up questions
+- ask grounded follow-up questions with citations
+- inspect evidence chunks and audit history
+
+## Why this project is strong for a portfolio
+
+ClauseLens demonstrates a senior-looking full stack AI system with:
+
+- `Next.js` frontend with server and client components
+- `FastAPI` backend with modular routes and services
+- persisted workspace, document, analysis, chat, and audit models
+- session-scoped workspace ownership for `member` and `guest` flows
+- upload -> parse -> chunk -> embed -> analyze pipeline
+- retrieval-backed AI chat with citations
+- inline production mode and worker-based local architecture
+
+## Core features
+
+- Authentication:
+  - `register`
+  - `login`
+  - `guest sandbox`
+- Workspaces:
+  - private workspace list per session
+  - create new review spaces
+  - ownership-scoped detail pages
+- Document ingestion:
+  - upload `pdf`, `txt`, and other text-extractable files
+  - track `uploaded`, `processing`, `ready`, `failed`
+  - re-run analysis from the evidence page
+- Analysis:
+  - summary
+  - red flags
+  - obligations
+  - follow-up questions
+- Grounded AI chat:
+  - retrieval over document chunks and analysis state
+  - citations back to source evidence
+  - evidence preview for the latest answer
+- Auditability:
+  - document upload events
+  - analysis lifecycle events
+  - chat question events
 
 ## Monorepo layout
 
 ```text
 apps/
-  web/      Next.js frontend
-  api/      FastAPI application
-  worker/   Background processing worker
+  api/        FastAPI application
+  web/        Next.js frontend
+  worker/     local background worker
 docs/
   architecture.md
+scripts/
+  smoke_auth_flow.py
 infra/
   docker-compose.yml
 ```
 
-## Planned stack
+## Stack
 
-- Frontend: Next.js, TypeScript, Tailwind CSS
-- Backend: FastAPI, SQLAlchemy, Pydantic
-- Worker: Celery with Redis
-- Worker: DB-backed polling worker for the local MVP
-- Data: SQLite by default for local MVP, Postgres and pgvector when configured, local file storage for MVP
-- AI: OpenAI for embeddings, structured analysis, and Q&A
+- Frontend: `Next.js 15`, `React 19`, `TypeScript`
+- Backend: `FastAPI`, `Pydantic`, `SQLAlchemy`
+- Local data: `SQLite`
+- Production data: `Postgres`
+- File storage: local uploads directory for the MVP
+- AI: `OpenAI` for structured analysis, embeddings, and grounded answers
+- Processing modes:
+  - `worker` for local async architecture
+  - `inline` for simple single-service production deployment
+
+## Architecture summary
+
+```text
+Next.js web app
+  -> FastAPI API
+     -> workspace/document/chat/audit persistence
+     -> local file storage for MVP uploads
+     -> OpenAI analysis and embeddings
+
+Optional local worker
+  -> claims queued uploads
+  -> parses, chunks, embeds, analyzes
+  -> writes final state back to the API database
+```
+
+Detailed notes live in [docs/architecture.md](/Users/mykytabro/Documents/Codex/2026-05-02-i-have-a-plan-for-tody/ClauseLens/docs/architecture.md).
+
+## Main product flows
+
+### 1. Auth
+
+- user creates an account or signs in
+- or enters through `View as guest`
+- guest access automatically provisions a private starter workspace
+
+### 2. Workspace review
+
+- create a workspace
+- upload a file
+- wait for the pipeline to reach `ready / analyzed`
+- inspect the structured analysis snapshot
+
+### 3. Evidence-backed Q&A
+
+- ask a follow-up question in chat
+- ClauseLens retrieves the most relevant chunks
+- the answer cites supporting evidence
+- the user can click through to the source chunk in the document evidence view
 
 ## Local development
 
-1. Copy `.env.example` to `.env`.
-2. Start infrastructure with Docker Compose.
-3. Run `npm install` from the repo root.
-4. Create a Python 3.13 environment for backend services:
+### Requirements
+
+- `Node.js`
+- `Python 3.13`
+
+### Install
+
+From the repo root:
 
 ```bash
+npm install
 DYLD_LIBRARY_PATH=/opt/homebrew/opt/expat/lib python3.13 -m venv .venv313
 DYLD_LIBRARY_PATH=/opt/homebrew/opt/expat/lib .venv313/bin/pip install -r apps/api/requirements.txt
 ```
 
-5. Run the web app, API, and worker in separate terminals:
+### Run locally
+
+Web:
 
 ```bash
 npm run dev:web
+```
+
+API:
+
+```bash
 npm run dev:api
+```
+
+Worker:
+
+```bash
 npm run dev:worker
 ```
 
-The web script includes a `NODE_OPTIONS=--no-experimental-webstorage` runtime fix because the local Node 25 environment exposes a broken server-side `localStorage` object that otherwise causes Next.js dev rendering to fail.
+### Local runtime notes
 
-By default the API uses a local SQLite database file at `apps/api/clauselens.db` for a zero-setup demo flow. Set `DATABASE_URL_OVERRIDE` in `.env` if you want to point the backend at Postgres instead.
+- The frontend dev script includes `NODE_OPTIONS=--no-experimental-webstorage` because the local Node 25 environment exposes a broken server-side `localStorage` object in dev mode.
+- By default the API uses local SQLite at `apps/api/clauselens.db`.
+- Set `DATABASE_URL_OVERRIDE` if you want to point the API at Postgres locally.
 
-`PROCESSING_MODE` controls how document ingestion runs:
+## Environment variables
 
-- `worker` (default): uploads are queued and completed by `npm run dev:worker`
-- `inline`: uploads are parsed, embedded, and analyzed inside the API request, which is simpler for single-service deployments
+Important backend variables:
 
-If `OPENAI_API_KEY` is configured, new uploads run through a real OpenAI-backed analysis call using the Responses API plus structured JSON output. If the key is missing or the request fails, ClauseLens falls back to a deterministic local analysis so the demo remains usable offline.
+```env
+APP_ENV=development
+PROCESSING_MODE=worker
+DATABASE_URL_OVERRIDE=
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-4o-mini
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+UPLOAD_DIR=./uploads
+CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+```
 
-## Current implemented demo flow
+Important frontend variable:
 
-- `GET /health`
-- `GET /api/workspaces`
-- `GET /api/workspaces/{workspace_id}`
-- `GET /api/workspaces/{workspace_id}/audit`
-- `GET /api/workspaces/{workspace_id}/documents`
-- `GET /api/workspaces/{workspace_id}/chat/history`
-- `POST /api/workspaces/{workspace_id}/chat`
-- `POST /api/documents/upload`
-
-The current workspace UI now reflects persisted documents, a generated analysis snapshot, and saved chat history from the local database.
-
-Grounded chat answers now pull from persisted document chunks and analysis snapshots, and the assistant returns citation labels that point back to those indexed sources.
-
-Uploads now enter the system in a queued state and are completed by the local worker process when `PROCESSING_MODE=worker`. Run `npm run dev:worker` alongside the API and web app to see documents transition through parsing, chunking, analysis, and final readiness.
-
-When `PROCESSING_MODE=inline`, the same upload endpoint runs parsing, embeddings, and analysis synchronously inside the API. This mode is recommended for simple production deployments where the API and worker do not share a filesystem.
+```env
+NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
+```
 
 ## Production deployment
 
-Recommended production split:
+### Recommended setup
 
 - Frontend: `Vercel`
-- Backend API: `Render`
-- Database: `Render Postgres`
+- Backend: `Render`
+- Database: `Render Postgres` or another managed Postgres
 
-### Render backend settings
-
-Use a single Python web service for the API.
+### Render backend
 
 - Root directory: leave empty
 - Build command: `pip install -r apps/api/requirements.txt`
 - Start command: `uvicorn app.main:app --app-dir apps/api --host 0.0.0.0 --port $PORT`
 
-Recommended environment variables:
+Recommended env:
 
-- `APP_ENV=production`
-- `PROCESSING_MODE=inline`
-- `DATABASE_URL_OVERRIDE=postgresql+psycopg://...`
-- `OPENAI_API_KEY=...`
-- `OPENAI_MODEL=gpt-4o-mini`
-- `OPENAI_EMBEDDING_MODEL=text-embedding-3-small`
-- `UPLOAD_DIR=./uploads`
-- `CORS_ORIGINS=https://your-vercel-domain.vercel.app`
+```env
+APP_ENV=production
+PYTHON_VERSION=3.13.5
+PROCESSING_MODE=inline
+DATABASE_URL_OVERRIDE=postgresql+psycopg://...
+OPENAI_API_KEY=...
+OPENAI_MODEL=gpt-4o-mini
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+UPLOAD_DIR=./uploads
+CORS_ORIGINS=https://your-vercel-domain.vercel.app
+```
 
-### Vercel frontend settings
+### Vercel frontend
 
 - Root directory: `apps/web`
+- Install command: `npm install`
 - Build command: `npm run build`
-- Output: default Next.js output
 
-Recommended environment variables:
+Frontend env:
 
-- `NEXT_PUBLIC_API_URL=https://your-render-api.onrender.com`
+```env
+NEXT_PUBLIC_API_URL=https://your-render-api.onrender.com
+```
 
-Detailed setup and architecture notes live in [`docs/architecture.md`](./docs/architecture.md).
+## Verified QA paths
+
+The project has been checked through:
+
+- `Next.js` production build
+- backend import and compile checks
+- auth sanity checks for `register`, `login`, and `guest`
+- ownership scoping checks for member and guest workspaces
+- local smoke flow for:
+  - register
+  - guest access
+  - create workspace
+  - upload document
+  - run worker processing
+  - ask grounded chat question
+
+You can rerun the local smoke flow with:
+
+```bash
+.venv313/bin/python scripts/smoke_auth_flow.py
+```
+
+This script expects the API to be running locally on `http://127.0.0.1:8000`.
+
+## Current limitations
+
+This is intentionally an MVP and not a full enterprise product yet.
+
+Not included:
+
+- billing
+- password reset flows
+- team invites
+- advanced RBAC
+- object storage like S3
+- dedicated production queue infrastructure
+- full eval dashboards
+- OCR for scanned PDFs
+
+## Good interview talking points
+
+- Why `inline` processing is simpler for a single-service deployment while `worker` mode better demonstrates scalable architecture
+- How retrieval uses document chunks plus analysis context instead of a plain chat wrapper
+- How guest access lowers friction while still preserving per-viewer data ownership
+- How the audit log and evidence view make AI behavior more explainable
