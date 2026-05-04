@@ -33,12 +33,12 @@ def build_fallback_chat_answer(
             "citations": [],
         }
 
-    bullets = []
+    summary_points = []
     citations = []
     for context in top_contexts:
         citations.append(context["citation"])
-        bullets.append(
-            f"- {context['label']}: {context['content'][:220]} "
+        summary_points.append(
+            f"- Evidence from {context['label']}: {context['content'][:220]} "
             f"(citation: {context['citation']})"
         )
 
@@ -46,8 +46,13 @@ def build_fallback_chat_answer(
         [
             f"Workspace: {workspace_name}",
             f"Question: {question}",
-            "Grounded findings:",
-            "\n".join(bullets),
+            "Summary:",
+            "The strongest grounded signals come from the indexed evidence below. Treat them as review points rather than final conclusions.",
+            "Key observations:",
+            "\n".join(summary_points),
+            "Suggested follow-up:",
+            "- Validate the cited clauses directly in the source material.",
+            "- Confirm whether the concern is explicit in the document or inferred from surrounding context.",
         ]
     )
 
@@ -91,7 +96,11 @@ def answer_with_openai(
             "context. If evidence is limited, say so clearly. Return compact JSON. "
             "Inside the answer string, write clean plain text with short sections and bullets. "
             "Do not use markdown formatting like **bold**, tables, or long single-paragraph blocks. "
-            "Prefer this structure when relevant: Summary, Key risks, Why they matter, Suggested follow-up."
+            "Use a professional, neutral analyst tone. Avoid harsh, judgmental, or absolute wording "
+            "about people, organizations, or documents. Frame potential issues as review points, risks, "
+            "or observations supported by evidence, not as definitive verdicts. Distinguish clearly between "
+            "what the evidence states and what is inferred. Prefer this structure when relevant: Summary, "
+            "Key risks, Why they matter, Suggested follow-up."
         ),
         "input": [
             {
