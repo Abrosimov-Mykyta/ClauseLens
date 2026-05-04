@@ -594,11 +594,10 @@ def complete_document_processing(
     )
     session.add(analysis)
 
-    actor = session.scalar(select(User).where(User.email == DEFAULT_USER_EMAIL))
     session.add(
         AuditLog(
             workspace_id=workspace.id,
-            actor_id=actor.id if actor else None,
+            actor_id=None,
             event_type="analysis.completed",
             message=f"Generated initial analysis snapshot for {document.filename}",
         )
@@ -621,11 +620,10 @@ def fail_document_processing(session: Session, document_id: str, reason: str) ->
     document.parser_stage = "failed"
     session.add(document)
 
-    actor = session.scalar(select(User).where(User.email == DEFAULT_USER_EMAIL))
     session.add(
         AuditLog(
             workspace_id=document.workspace_id,
-            actor_id=actor.id if actor else None,
+            actor_id=None,
             event_type="analysis.failed",
             message=f"Document processing failed for {document.filename}: {reason}",
         )
