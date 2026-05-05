@@ -23,16 +23,6 @@ ClauseLens demonstrates a senior-looking full stack AI system with:
 - retrieval-backed AI chat with citations
 - inline production mode and worker-based local architecture
 
-## Screenshots
-
-### Workspace dashboard
-
-![ClauseLens workspace dashboard](./docs/screenshots/workspace-dashboard.png)
-
-### Upload and review flow
-
-![ClauseLens upload flow](./docs/screenshots/workspace-upload.png)
-
 ## Core features
 
 - Authentication:
